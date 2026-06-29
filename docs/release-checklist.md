@@ -19,7 +19,9 @@ python -m link2context.store --help
 - Confirm no cookies, tokens, private exports, or downloaded media are staged.
 - Confirm `README.md`, `CHANGELOG.md`, `LICENSE`, `CONTRIBUTING.md`, and `SECURITY.md` are present.
 - Confirm `.github/workflows/ci.yml` runs the same test command as local verification.
+- Confirm `.github/dependabot.yml` tracks GitHub Actions and pip metadata updates.
 - Confirm `.github/pull_request_template.md` and issue templates are present.
+- Confirm `CODE_OF_CONDUCT.md` is present.
 - Confirm `pyproject.toml` version matches `link2context.__version__`; this is covered by tests.
 - Confirm local Markdown links resolve; this is covered by tests.
 - Confirm README offline examples still write `context.json` and `context.md`; this is covered by tests.
@@ -33,3 +35,10 @@ python -m link2context.store --help
 - Platform adapters remain read-only.
 - OCR/ASR execution remains explicit and reviewable before `--execute`.
 - Live platform behavior is covered by docs; tests should prefer offline fixtures.
+
+## GitHub publish check
+
+- Confirm the current branch is `main`.
+- Confirm the target remote URL points to the intended GitHub repository.
+- Push only after the repository hygiene checks pass.
+- After pushing, confirm GitHub Actions CI runs on `main`.

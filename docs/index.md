@@ -9,9 +9,11 @@ Link2Context is an open-source, local-first CLI and Python library for turning s
 - [Changelog](../CHANGELOG.md): release notes and notable project changes.
 - [Roadmap](roadmap.md): near-term and later open-source direction.
 - [Open Source Goal](product-goal.md): project scope, non-goals, and milestones.
+- [GitHub Publishing](github-publish.md): remote setup and final public repository checks.
 - [Release Checklist](release-checklist.md): local checks before publishing or tagging.
 - [Security Policy](../SECURITY.md): secret handling, platform boundaries, and vulnerability reporting.
 - [Contributing](../CONTRIBUTING.md): local setup, PR checks, and contribution principles.
+- [Code of Conduct](../CODE_OF_CONDUCT.md): expectations for public collaboration.
 
 ## Technical notes
 
