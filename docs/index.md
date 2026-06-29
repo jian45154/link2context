@@ -18,6 +18,7 @@ Link2Context is an open-source, local-first CLI and Python library for turning s
 ## Technical notes
 
 - [Architecture](architecture.md): modules, data flow, contracts, and boundaries.
+- [Import And Export Contracts](export-contracts.md): stable files, optional fields, and verification commands for external tools.
 - [Graph MVP](graph-mvp.md): entity, relationship, graph export, and profile scope.
 - [Agent Query MVP](agent-query-mvp.md): keyword query package and retrieval sources.
 - [Open Source Landscape Scan](competitive-scan.md): adjacent public projects and positioning.
