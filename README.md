@@ -2,39 +2,54 @@
 
 [![CI](https://github.com/jian45154/link2context/actions/workflows/ci.yml/badge.svg)](https://github.com/jian45154/link2context/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/jian45154/link2context)](https://github.com/jian45154/link2context/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-2f6f5e.svg)](LICENSE)
 
-Link2Context 是一个开源、本地优先的链接到上下文工具包，用于把文章、社媒链接、视频、图文和网页内容整理成可检索、可引用、可喂给 AI agent 的本地知识图谱输入。
+**把收藏链接编译成 agent-ready context。**
 
-一句话定位：**把收藏链接编译成 agent-ready context。**
+Link2Context 是一个开源、本地优先的 CLI / Python library，用于把文章、社媒链接、视频、图文和网页内容整理成可检索、可引用、可喂给 AI agent 的本地知识图谱输入。
 
-当前定位是 GitHub-first 的开源 CLI / Python library，不做托管 SaaS 产品。现阶段重点是采集与标准化层：输入微信公众号文章链接或小红书笔记链接，输出适合进入知识图谱和 AI agent 的 `context.json` 和 `context.md`。
+```text
+saved links -> normalized context -> local store -> graph/query/export -> agent handoff
+```
 
-当前范围很窄：
+当前项目坚持 GitHub-first 和 local-first：不做托管 SaaS，不绕过平台限制，不采集评论点赞等互动数据。现阶段重点是采集与标准化层：输入公开微信公众号文章链接或公开小红书笔记链接，输出适合进入知识图谱和 AI agent 的 `context.json`、`context.md`、batch manifest 和本地查询包。
 
-- 支持公开微信公众号文章 URL。
-- 支持公开小红书笔记 URL 的保守 HTML 解析。
-- 抽取标题、作者、发布时间、摘要、正文、图片、视频占位信息。
-- 输出统一 context schema，作为后续知识图谱入库输入。
-- 图片 OCR 和视频 ASR 通过外部命令适配层执行并回写，暂不内置具体识别引擎。
-- 不做评论采集、互动数据采集、平台绕过；批量 URL 处理和 Cookie 请求头已作为本地工作流入口支持。
+## What It Does
+
+| Area | Current support |
+| --- | --- |
+| Sources | 公开微信公众号文章 URL；公开小红书笔记 URL 的保守 HTML 解析 |
+| Extraction | 标题、作者、发布时间、摘要、正文、图片、视频占位信息 |
+| Outputs | `context.json`、`context.md`、batch manifest、SQLite store、graph export、agent query package |
+| Media | 图片 OCR 和视频 ASR 通过外部命令适配层执行并回写，暂不内置具体识别引擎 |
+| Boundaries | 不做评论采集、互动数据采集、平台绕过；Cookie 仅作为本地请求头使用 |
+
+## Quick Links
+
+- [Quickstart](docs/quickstart.md): 最小离线闭环，从 fixture 到 store query 和 handoff export。
+- [Documentation Index](docs/index.md): 架构、图谱、导入导出契约、媒体 OCR/ASR、发布检查入口。
+- [Architecture](docs/architecture.md): 模块边界、数据流和稳定契约。
+- [Roadmap](docs/roadmap.md): 近期和后续开源方向。
+- [Contributing](CONTRIBUTING.md): 本地开发、测试和 PR 原则。
+- [Project Page](index.html): 静态 HTML 项目主页，可用于 GitHub Pages。
 
 ## Project Status
 
 当前是 alpha 阶段，适合本地自用、开发者二次开发和离线 fixture 回归测试。
 
-- Stable enough: WeChat / Xiaohongshu context extraction, batch manifests, SQLite store, graph/export/query commands.
-- Experimental: OCR/ASR command adapters, media cache repair, Agent Reach integration, graph/profile heuristics.
-- Not supported: hosted service, account automation, platform bypass, comment/like/post collection.
+| Stable enough | Experimental | Not supported |
+| --- | --- | --- |
+| WeChat / Xiaohongshu context extraction；batch manifests；SQLite store；graph/export/query commands | OCR/ASR command adapters；media cache repair；Agent Reach integration；graph/profile heuristics | hosted service；account automation；platform bypass；comment/like/post collection |
 
 ## Repository Map
 
-- `link2context/`: CLI、平台解析器、本地 store 和图谱逻辑。
-- `tests/`: 离线 fixture 回归测试。
-- `examples/`: 微信、小红书和媒体处理样例输入。
-- `docs/`: 架构、开源目标、图谱、查询、生态扫描和发布检查文档。
-- `.github/`: CI、Dependabot、issue templates 和 pull request template。
-
-更多文档入口见 [docs/index.md](docs/index.md)，最小离线闭环见 [docs/quickstart.md](docs/quickstart.md)，导入导出契约见 [docs/export-contracts.md](docs/export-contracts.md)，媒体 OCR/ASR 接入见 [docs/media-ocr-asr.md](docs/media-ocr-asr.md)，GitHub 发布步骤见 [docs/github-publish.md](docs/github-publish.md)，版本变化见 [CHANGELOG.md](CHANGELOG.md)，后续方向见 [docs/roadmap.md](docs/roadmap.md)。
+```text
+link2context/   CLI, platform parsers, local store, graph logic
+tests/          offline fixture regression tests
+examples/       WeChat, Xiaohongshu, and media pipeline sample inputs
+docs/           architecture, contracts, roadmap, release, and publishing notes
+.github/        CI, Dependabot, issue templates, pull request template
+```
 
 ## Open Source Direction
 

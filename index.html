@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>灵渠 / Link2Context</title>
+  <meta name="description" content="Link2Context turns saved links and social content into agent-ready local context, graph inputs, and query packages.">
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f7f4ed;
+      --ink: #19231f;
+      --muted: #59645f;
+      --line: #d8d0c2;
+      --field: #fffaf0;
+      --field-strong: #ece4d5;
+      --green: #2f6f5e;
+      --green-dark: #174c3f;
+      --amber: #b66b1f;
+      --rust: #8e3f28;
+      --code: #101816;
+      --code-soft: #d5e5dc;
+      --shadow: 0 24px 80px rgba(38, 31, 19, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: ui-serif, Georgia, "Times New Roman", "Noto Serif SC", serif;
+      line-height: 1.55;
+    }
+
+    a {
+      color: inherit;
+      text-decoration-color: rgba(47, 111, 94, 0.35);
+      text-decoration-thickness: 2px;
+      text-underline-offset: 4px;
+    }
+
+    a:hover {
+      color: var(--green-dark);
+      text-decoration-color: var(--green);
+    }
+
+    .shell {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid rgba(216, 208, 194, 0.78);
+      background: rgba(247, 244, 237, 0.9);
+      backdrop-filter: blur(16px);
+    }
+
+    .topbar-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 64px;
+      gap: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      font-weight: 760;
+      letter-spacing: 0;
+    }
+
+    .brand span {
+      color: var(--muted);
+      font-size: 0.92rem;
+      font-weight: 520;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      color: var(--muted);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.92rem;
+    }
+
+    .hero {
+      padding: 82px 0 70px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, 0.82fr);
+      gap: 56px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      margin: 0 0 18px;
+      color: var(--green);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.82rem;
+      font-weight: 760;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      text-wrap: pretty;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 760px;
+      font-size: clamp(3rem, 8vw, 6.9rem);
+      line-height: 0.92;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      max-width: 700px;
+      margin: 28px 0 0;
+      color: var(--muted);
+      font-size: clamp(1.12rem, 2vw, 1.36rem);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 34px;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 18px;
+      border: 1px solid var(--ink);
+      border-radius: 6px;
+      background: var(--ink);
+      color: var(--paper);
+      text-decoration: none;
+      font-weight: 720;
+    }
+
+    .button.secondary {
+      border-color: var(--line);
+      background: transparent;
+      color: var(--ink);
+    }
+
+    .terminal {
+      overflow: hidden;
+      border: 1px solid rgba(25, 35, 31, 0.18);
+      border-radius: 8px;
+      background: var(--code);
+      color: #eaf3ee;
+      box-shadow: var(--shadow);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    .terminal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(213, 229, 220, 0.12);
+      color: rgba(234, 243, 238, 0.62);
+      font-size: 0.76rem;
+    }
+
+    .lights {
+      display: flex;
+      gap: 7px;
+    }
+
+    .lights i {
+      display: block;
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--rust);
+    }
+
+    .lights i:nth-child(2) {
+      background: var(--amber);
+    }
+
+    .lights i:nth-child(3) {
+      background: var(--green);
+    }
+
+    .terminal pre {
+      margin: 0;
+      padding: 22px;
+      white-space: pre-wrap;
+      font-size: 0.9rem;
+      line-height: 1.7;
+    }
+
+    .prompt {
+      color: #9fceb9;
+    }
+
+    .json {
+      color: var(--code-soft);
+    }
+
+    section {
+      padding: 70px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(220px, 0.42fr) minmax(0, 1fr);
+      gap: 44px;
+      margin-bottom: 34px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 4rem);
+      line-height: 0.98;
+      letter-spacing: 0;
+    }
+
+    .section-copy {
+      margin: 0;
+      max-width: 740px;
+      color: var(--muted);
+      font-size: 1.08rem;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .feature {
+      min-height: 190px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 250, 240, 0.56);
+    }
+
+    .feature b {
+      display: block;
+      margin-bottom: 18px;
+      color: var(--green-dark);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.86rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .feature h3 {
+      margin: 0 0 10px;
+      font-size: 1.25rem;
+      line-height: 1.15;
+    }
+
+    .feature p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.97rem;
+    }
+
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--field);
+      overflow: hidden;
+    }
+
+    .stage {
+      min-height: 170px;
+      padding: 22px;
+      border-right: 1px solid var(--line);
+    }
+
+    .stage:last-child {
+      border-right: 0;
+    }
+
+    .stage span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      margin-bottom: 24px;
+      border: 1px solid var(--green);
+      border-radius: 50%;
+      color: var(--green-dark);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.86rem;
+      font-weight: 800;
+    }
+
+    .stage h3 {
+      margin: 0 0 8px;
+      font-size: 1.15rem;
+    }
+
+    .stage p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .docs-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .doc-link {
+      min-height: 136px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--field);
+      text-decoration: none;
+    }
+
+    .doc-link strong {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--ink);
+      font-size: 1.08rem;
+    }
+
+    .doc-link span {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+      gap: 42px;
+      align-items: start;
+    }
+
+    .note {
+      padding: 26px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--field-strong);
+    }
+
+    .note h3 {
+      margin: 0 0 12px;
+      font-size: 1.45rem;
+    }
+
+    .note p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .commands {
+      margin: 0;
+      padding: 24px;
+      border-radius: 8px;
+      background: var(--code);
+      color: #eaf3ee;
+      overflow: auto;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.9rem;
+      line-height: 1.7;
+    }
+
+    .footer {
+      padding: 34px 0 46px;
+      color: var(--muted);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 920px) {
+      .hero-grid,
+      .section-head,
+      .split {
+        grid-template-columns: 1fr;
+      }
+
+      .feature-grid,
+      .docs-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .pipeline {
+        grid-template-columns: 1fr;
+      }
+
+      .stage {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .stage:last-child {
+        border-bottom: 0;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .shell {
+        width: min(100% - 28px, 1180px);
+      }
+
+      .topbar-inner {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 14px 0;
+        gap: 10px;
+      }
+
+      .nav {
+        width: 100%;
+        overflow-x: auto;
+        padding-bottom: 2px;
+      }
+
+      .hero {
+        padding-top: 56px;
+      }
+
+      h1 {
+        font-size: clamp(2.7rem, 15vw, 4.2rem);
+      }
+
+      .feature-grid,
+      .docs-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <div class="brand">灵渠 <span>Link2Context</span></div>
+      <nav class="nav" aria-label="Project navigation">
+        <a href="#features">能力</a>
+        <a href="#pipeline">流程</a>
+        <a href="#docs">文档</a>
+        <a href="https://github.com/jian45154/link2context">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="shell hero-grid">
+        <div>
+          <p class="eyebrow">local-first context compiler</p>
+          <h1>把收藏链接编译成 agent-ready context。</h1>
+          <p class="subtitle">
+            Link2Context 是一个开源 CLI / Python library，把公开文章、社媒图文和媒体线索整理成
+            <code>context.json</code>、<code>context.md</code>、本地 store、知识图谱输入和 agent 查询包。
+          </p>
+          <div class="actions">
+            <a class="button" href="https://github.com/jian45154/link2context">查看源码</a>
+            <a class="button secondary" href="docs/quickstart.md">运行 Quickstart</a>
+          </div>
+        </div>
+
+        <div class="terminal" aria-label="Link2Context command preview">
+          <div class="terminal-head">
+            <div class="lights" aria-hidden="true"><i></i><i></i><i></i></div>
+            <span>link2context</span>
+          </div>
+          <pre><span class="prompt">$</span> python -m link2context "https://mp.weixin.qq.com/s/..." --out outputs/sample
+
+<span class="json">outputs/sample/
+  context.json
+  context.md
+  manifest.json
+
+quality:
+  source: public url
+  media: placeholders
+  handoff: ready</span></pre>
+        </div>
+      </div>
+    </section>
+
+    <section id="features">
+      <div class="shell">
+        <div class="section-head">
+          <h2>项目能力</h2>
+          <p class="section-copy">
+            当前重点很窄：保守采集、统一上下文、离线回归、本地查询。它不是下载器，也不是平台自动化工具。
+          </p>
+        </div>
+
+        <div class="feature-grid">
+          <article class="feature">
+            <b>Sources</b>
+            <h3>公开链接输入</h3>
+            <p>支持公开微信公众号文章 URL 和公开小红书笔记 URL 的保守 HTML 解析。</p>
+          </article>
+          <article class="feature">
+            <b>Context</b>
+            <h3>统一输出契约</h3>
+            <p>抽取标题、作者、时间、摘要、正文、图片和视频占位信息，输出稳定 context 文件。</p>
+          </article>
+          <article class="feature">
+            <b>Store</b>
+            <h3>本地知识入口</h3>
+            <p>将 context 导入 SQLite store，再导出 graph、profile 和 agent query package。</p>
+          </article>
+          <article class="feature">
+            <b>Boundary</b>
+            <h3>清晰平台边界</h3>
+            <p>不绕过登录和风控，不采集评论点赞，不提交 Cookie、token 或私有内容。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="pipeline">
+      <div class="shell">
+        <div class="section-head">
+          <h2>工作流</h2>
+          <p class="section-copy">
+            长期目标是一条可自托管、可二次开发的本地内容编译管线：从链接进入，到上下文、图谱、检索和 agent handoff。
+          </p>
+        </div>
+
+        <div class="pipeline" aria-label="Link2Context pipeline">
+          <div class="stage">
+            <span>1</span>
+            <h3>Collect</h3>
+            <p>接收文章、社媒链接、视频、图文、PDF 和网页来源。</p>
+          </div>
+          <div class="stage">
+            <span>2</span>
+            <h3>Normalize</h3>
+            <p>清洗正文、媒体、引用、实体、时间、作者和来源。</p>
+          </div>
+          <div class="stage">
+            <span>3</span>
+            <h3>Connect</h3>
+            <p>抽取主题、人物、产品、地点、事件和关系。</p>
+          </div>
+          <div class="stage">
+            <span>4</span>
+            <h3>Retrieve</h3>
+            <p>按主题、问题、时间线和关系查询本地上下文。</p>
+          </div>
+          <div class="stage">
+            <span>5</span>
+            <h3>Act</h3>
+            <p>给 AI agent 提供可信上下文、引用证据和本地兴趣画像。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="docs">
+      <div class="shell">
+        <div class="section-head">
+          <h2>文档入口</h2>
+          <p class="section-copy">
+            README 保留完整命令和 schema 说明；专题文档用于解释架构、契约、媒体流程和开源发布检查。
+          </p>
+        </div>
+
+        <div class="docs-grid">
+          <a class="doc-link" href="README.md">
+            <strong>README</strong>
+            <span>项目概览、安装命令、核心 CLI 工作流和 schema 说明。</span>
+          </a>
+          <a class="doc-link" href="docs/quickstart.md">
+            <strong>Quickstart</strong>
+            <span>最小离线闭环：context 文件、store query 和 handoff export。</span>
+          </a>
+          <a class="doc-link" href="docs/architecture.md">
+            <strong>Architecture</strong>
+            <span>模块、数据流、契约和边界。</span>
+          </a>
+          <a class="doc-link" href="docs/export-contracts.md">
+            <strong>Export Contracts</strong>
+            <span>稳定文件、可选字段和外部工具校验命令。</span>
+          </a>
+          <a class="doc-link" href="docs/media-ocr-asr.md">
+            <strong>Media OCR / ASR</strong>
+            <span>fake、Tesseract、Sona/Vibe 和自定义命令模板。</span>
+          </a>
+          <a class="doc-link" href="docs/roadmap.md">
+            <strong>Roadmap</strong>
+            <span>近期里程碑和后续开源方向。</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="shell split">
+        <div class="note">
+          <h3>Alpha, local-first, GitHub-first.</h3>
+          <p>
+            适合本地自用、开发者二次开发和离线 fixture 回归测试。项目不提供托管账号服务，也不做平台写操作自动化。
+          </p>
+        </div>
+        <pre class="commands">python -m pip install -e ".[dev]"
+python -m pytest tests -q
+python -m link2context --url-list examples/wechat_urls.txt --out outputs/batch
+python -m link2context --verify-batch outputs/batch
+python -m link2context.store query data/context-store.sqlite --q "agent"</pre>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="shell">
+      MIT Licensed. Built for local context, inspectable evidence, and agent handoff.
+    </div>
+  </footer>
+</body>
+</html>
