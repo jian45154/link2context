@@ -91,7 +91,7 @@ def main() -> None:
         run_batch(Path(args.url_list), Path(args.out), args.platform, args.backend, read_cookie(args))
         return
 
-    source_url = args.url or args.input_url
+    source_url = normalize_source_url(args.url or args.input_url)
     if not source_url:
         raise SystemExit("Provide a WeChat article URL, --url-list, or use --html with --url.")
 
@@ -488,13 +488,23 @@ def read_url_list(path: Path) -> list[str]:
         value = line.strip()
         if not value or value.startswith("#"):
             continue
-        if value.startswith("xiaohongshu.com/"):
-            value = f"https://{value}"
+        value = normalize_source_url(value)
         if value in seen:
             continue
         seen.add(value)
         urls.append(value)
     return urls
+
+
+def normalize_source_url(value: str | None) -> str | None:
+    if not value:
+        return value
+    value = value.strip()
+    if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", value):
+        return value
+    if value.startswith(("xiaohongshu.com/", "www.xiaohongshu.com/", "xhslink.com/", "mp.weixin.qq.com/")):
+        return f"https://{value}"
+    return value
 
 
 def read_cookie(args: argparse.Namespace) -> str | None:

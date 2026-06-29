@@ -78,6 +78,15 @@ MEDIA_TEXT_PRESETS = {
         "confidence": None,
         "description": "Run Vibe/Sona whisper.cpp transcription against a local audio/video path.",
     },
+    "vibe": {
+        "kind": "video",
+        "template": '"{tool_path}" transcribe "{preset_model}" "{input_source}" --language {language}',
+        "tool_path": "vibe",
+        "model": "vibe",
+        "language": "zh",
+        "confidence": None,
+        "description": "Run Vibe whisper.cpp-style transcription against a local audio/video path.",
+    },
 }
 
 
@@ -4783,11 +4792,12 @@ def auto_queue_next_commands(commands: list[str], next_plan: dict | None = None)
         low_confidence = command_has_flag(command, "--low-confidence")
         suffix = f"{kind}-low-confidence" if low_confidence else f"{kind}-{status}"
         output = f"{plan['out_dir'].rstrip('/')}/auto-queue-media-text-{suffix}.jsonl"
+        effective_plan = auto_queue_next_effective_plan_for_kind(plan, kind)
         pieces = [
             "python -m link2context.store --db data/link2context.db run-media-text",
             f"--kind {kind}",
             f"--out {output}",
-            *auto_queue_next_runner_args(plan),
+            *auto_queue_next_runner_args(effective_plan),
             "--apply --reindex",
         ]
         if low_confidence:
@@ -4801,6 +4811,23 @@ def auto_queue_next_commands(commands: list[str], next_plan: dict | None = None)
             seen.add(next_command)
             next_commands.append(next_command)
     return next_commands
+
+
+def auto_queue_next_effective_plan_for_kind(plan: dict, kind: str) -> dict:
+    preset = plan.get("preset")
+    if not preset:
+        return plan
+    preset_config = MEDIA_TEXT_PRESETS.get(preset) or {}
+    preset_kind = preset_config.get("kind")
+    if preset_kind in (None, "all", kind):
+        return plan
+    fallback = dict(plan)
+    fallback["preset"] = None
+    fallback["preset_model"] = None
+    fallback["tool_path"] = None
+    fallback["command_template"] = None
+    fallback["model"] = "external-command"
+    return fallback
 
 
 def auto_queue_next_runner_args(plan: dict) -> list[str]:
@@ -6363,7 +6390,7 @@ def media_text_presets_report(
         else:
             executable = name
             resolved = shutil.which(name)
-        requires_model = name == "sona"
+        requires_model = name in {"sona", "vibe"}
         resolved_preset_model = preset_model
         if requires_model and not resolved_preset_model and discovered_models:
             resolved_preset_model = discovered_models[0]["path"]
@@ -6473,7 +6500,7 @@ def media_text_preset_example(
         f"--out outputs/media-text/{name}.jsonl",
         f"--preset {name}",
     ]
-    if name == "sona":
+    if name in {"sona", "vibe"}:
         pieces.append(f"--preset-model {quote_cli_value(preset_model or 'models/ggml-small.bin')}")
     if tool_path:
         pieces.append(f"--tool-path {quote_cli_value(tool_path)}")
@@ -7499,8 +7526,8 @@ def resolve_media_text_runner(
         config = MEDIA_TEXT_PRESETS.get(preset)
         if not config:
             raise ValueError(f"Unknown media text preset: {preset}")
-        if preset == "sona" and not preset_model:
-            raise ValueError("preset_model is required for sona")
+        if preset in {"sona", "vibe"} and not preset_model:
+            raise ValueError(f"preset_model is required for {preset}")
         resolved_language = language or config.get("language", "")
         resolved_model = model if model != "external-command" else config.get("model", model)
         return {

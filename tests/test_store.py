@@ -8,6 +8,7 @@ from pathlib import Path
 from link2context import __version__
 from link2context.graph import extract_graph
 import link2context.store as store_cli
+from link2context.cli import normalize_source_url, read_url_list
 from link2context.store import (
     action_plan,
     add_document_tags,
@@ -58,6 +59,7 @@ from link2context.store import (
     media_cache_action_command,
     media_cache_action_detail,
     media_cache_action_title,
+    media_cache_candidates,
     media_process_action_command,
     media_process_action_detail,
     media_text_command,
@@ -189,6 +191,89 @@ def test_store_cli_help_lists_core_commands(monkeypatch, capsys) -> None:
     assert "ingest" in output
     assert "media-pipeline" in output
     assert "verify-auto-queue-next" in output
+
+
+def test_normalize_source_url_accepts_forwarded_bare_social_links(tmp_path: Path) -> None:
+    assert normalize_source_url("xiaohongshu.com/discovery/item/abc") == "https://xiaohongshu.com/discovery/item/abc"
+    assert normalize_source_url("www.xiaohongshu.com/explore/abc") == "https://www.xiaohongshu.com/explore/abc"
+    assert normalize_source_url("xhslink.com/a/abc") == "https://xhslink.com/a/abc"
+    assert normalize_source_url("mp.weixin.qq.com/s/example") == "https://mp.weixin.qq.com/s/example"
+    assert normalize_source_url("https://example.com/a") == "https://example.com/a"
+
+    url_list = tmp_path / "urls.txt"
+    url_list.write_text(
+        "# comment\n"
+        "xiaohongshu.com/discovery/item/abc\n"
+        "xiaohongshu.com/discovery/item/abc\n"
+        "mp.weixin.qq.com/s/example\n",
+        encoding="utf-8",
+    )
+
+    assert read_url_list(url_list) == [
+        "https://xiaohongshu.com/discovery/item/abc",
+        "https://mp.weixin.qq.com/s/example",
+    ]
+
+
+def test_imported_video_media_is_ready_for_cache_and_asr_queue() -> None:
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    init_db(conn)
+    html = Path("examples/wechat_sample.html").read_text(encoding="utf-8")
+    context = build_wechat_context("https://mp.weixin.qq.com/s/example", html)
+
+    import_context(conn, context)
+
+    videos = media_inventory(conn, kind="video", status="not_processed", limit=10)
+    queue = media_queue(conn, kind="video", status="not_processed", limit=10)
+    cache_candidates = media_cache_candidates(conn, kind="video", status="not_processed", limit=10)
+
+    assert videos["items"]
+    assert videos["items"][0]["status"] == "not_processed"
+    assert queue["items"][0]["task"] == "asr"
+    assert cache_candidates[0]["status"] == "not_processed"
+
+
+def test_vibe_preset_is_available_for_video_asr_command_generation() -> None:
+    runner = resolve_media_text_runner(preset="vibe", preset_model="models/ggml-small.bin", language="zh")
+
+    assert runner["preset"] == "vibe"
+    assert runner["model"] == "vibe"
+    assert runner["language"] == "zh"
+    assert '"{tool_path}" transcribe' in runner["command_template"]
+    assert runner["format_values"]["tool_path"] == "vibe"
+
+    command = auto_queue_next_commands(
+        ["python -m link2context.store --db data/link2context.db queue --kind video --status not_processed --format jsonl"],
+        {"preset": "vibe", "preset_model": "models/ggml-small.bin", "language": "zh"},
+    )[0]
+    assert "--preset vibe" in command
+    assert '--preset-model "models/ggml-small.bin"' in command
+    assert "--kind video" in command
+    assert "--apply --reindex" in command
+
+    mixed_commands = auto_queue_next_commands(
+        [
+            "python -m link2context.store --db data/link2context.db queue --kind image --status not_processed --format jsonl",
+            "python -m link2context.store --db data/link2context.db queue --kind video --status not_processed --format jsonl",
+        ],
+        {"preset": "vibe", "preset_model": "models/ggml-small.bin", "language": "zh"},
+    )
+    assert "--kind image" in mixed_commands[0]
+    assert "--preset vibe" not in mixed_commands[0]
+    assert "<ocr-or-asr-command> {input_source}" in mixed_commands[0]
+    assert "--kind video" in mixed_commands[1]
+    assert "--preset vibe" in mixed_commands[1]
+
+
+def test_vibe_preset_requires_model() -> None:
+    try:
+        resolve_media_text_runner(preset="vibe")
+    except ValueError as exc:
+        assert "preset_model is required for vibe" in str(exc)
+    else:
+        raise AssertionError("vibe preset without model should fail")
 
 
 def test_import_context_populates_store_counts() -> None:
@@ -774,7 +859,9 @@ def test_media_text_presets_report_lists_templates_and_examples() -> None:
     sona = next(preset for preset in report["presets"] if preset["name"] == "sona")
     tesseract = next(preset for preset in report["presets"] if preset["name"] == "tesseract")
 
-    assert names == {"tesseract", "sona"}
+    vibe = next(preset for preset in report["presets"] if preset["name"] == "vibe")
+
+    assert names == {"tesseract", "sona", "vibe"}
     assert sona["requires_model"] is True
     assert sona["tool_path"] == "sona"
     assert sona["model_available"] is False
@@ -782,6 +869,9 @@ def test_media_text_presets_report_lists_templates_and_examples() -> None:
     assert "--preset sona" in sona["example"]
     assert '--preset-model "models/ggml-small.bin"' in sona["example"]
     assert "--apply --reindex" in sona["example"]
+    assert vibe["requires_model"] is True
+    assert vibe["tool_path"] == "vibe"
+    assert "--preset vibe" in vibe["example"]
     assert tesseract["kind"] == "image"
     assert "{input_source}" in tesseract["template"]
     assert set(report["available"] + report["missing"]) == names
