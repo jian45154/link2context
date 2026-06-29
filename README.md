@@ -4,6 +4,8 @@
 [![Release](https://img.shields.io/github/v/release/jian45154/link2context)](https://github.com/jian45154/link2context/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-2f6f5e.svg)](LICENSE)
 
+Language: [简体中文](README.md) | [English](README.en.md)
+
 **把收藏链接编译成 agent-ready context。**
 
 Link2Context 是一个开源、本地优先的 CLI / Python library，用于把文章、社媒链接、视频、图文和网页内容整理成可检索、可引用、可喂给 AI agent 的本地知识图谱输入。

@@ -4,7 +4,8 @@ Link2Context is an open-source, local-first CLI and Python library for turning s
 
 ## Start here
 
-- [README](../README.md): project overview, install command, core CLI workflows.
+- [README](../README.md): Chinese project overview, install command, core CLI workflows.
+- [English README](../README.en.md): English entry point and core workflow summary.
 - [Quickstart](quickstart.md): offline fixture workflow from context files to store query and handoff export.
 - [Changelog](../CHANGELOG.md): release notes and notable project changes.
 - [Roadmap](roadmap.md): near-term and later open-source direction.
