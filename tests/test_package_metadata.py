@@ -56,6 +56,7 @@ def test_open_source_repository_files_are_present() -> None:
         "docs/release-checklist.md",
         ".github/dependabot.yml",
         ".github/workflows/ci.yml",
+        ".github/workflows/release.yml",
         ".github/pull_request_template.md",
         ".github/ISSUE_TEMPLATE/bug_report.md",
         ".github/ISSUE_TEMPLATE/feature_request.md",

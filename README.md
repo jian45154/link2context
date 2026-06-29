@@ -1,5 +1,8 @@
 # 灵渠 / Link2Context
 
+[![CI](https://github.com/jian45154/link2context/actions/workflows/ci.yml/badge.svg)](https://github.com/jian45154/link2context/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/jian45154/link2context)](https://github.com/jian45154/link2context/releases)
+
 Link2Context 是一个开源、本地优先的链接到上下文工具包，用于把文章、社媒链接、视频、图文和网页内容整理成可检索、可引用、可喂给 AI agent 的本地知识图谱输入。
 
 一句话定位：**把收藏链接编译成 agent-ready context。**

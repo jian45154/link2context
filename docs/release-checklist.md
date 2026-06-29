@@ -13,12 +13,24 @@ python -m link2context --help
 python -m link2context.store --help
 ```
 
+## Version release
+
+For a normal release, update `CHANGELOG.md`, confirm `pyproject.toml` and `link2context.__version__` match, then create and push a version tag:
+
+```powershell
+git tag -a v0.1.1 -m "Link2Context v0.1.1"
+git push origin v0.1.1
+```
+
+The `Release` GitHub Actions workflow builds the package, runs tests, creates the GitHub release if needed, and uploads `dist/*` assets.
+
 ## Repository hygiene
 
 - Confirm `git status --short --ignored` shows generated outputs as ignored.
 - Confirm no cookies, tokens, private exports, or downloaded media are staged.
 - Confirm `README.md`, `CHANGELOG.md`, `LICENSE`, `CONTRIBUTING.md`, and `SECURITY.md` are present.
 - Confirm `.github/workflows/ci.yml` runs the same test command as local verification.
+- Confirm `.github/workflows/release.yml` builds release assets for version tags.
 - Confirm `.github/dependabot.yml` tracks GitHub Actions and pip metadata updates.
 - Confirm `.github/pull_request_template.md` and issue templates are present.
 - Confirm `CODE_OF_CONDUCT.md` is present.

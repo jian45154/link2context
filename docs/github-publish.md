@@ -51,3 +51,14 @@ Do not use `--public` until the hygiene checks above pass.
 - Confirm issue templates and the pull request template are visible.
 - Add a short repository description: `Local-first link-to-context toolkit for AI agents.`
 - Add topics such as `ai-agent`, `knowledge-graph`, `wechat`, `xiaohongshu`, `ocr`, and `asr`.
+
+## First Release
+
+After `main` is green, create a version tag:
+
+```powershell
+git tag -a v0.1.0 -m "Link2Context v0.1.0"
+git push origin v0.1.0
+```
+
+The release workflow will run tests, build the package, and upload release assets.
