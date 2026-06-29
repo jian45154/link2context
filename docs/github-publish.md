@@ -61,4 +61,6 @@ git tag -a v0.1.0 -m "Link2Context v0.1.0"
 git push origin v0.1.0
 ```
 
-The release workflow will run tests, build the package, and upload release assets.
+The release workflow will run tests, build the package, create or update the GitHub release, and upload release assets. `v0.*` tags are treated as prereleases.
+
+For future releases, run the `Release` workflow manually before pushing the tag when you want a remote build check without publishing assets.

@@ -15,14 +15,25 @@ python -m link2context.store --help
 
 ## Version release
 
-For a normal release, update `CHANGELOG.md`, confirm `pyproject.toml` and `link2context.__version__` match, then create and push a version tag:
+Tag policy:
+
+- Use annotated SemVer tags with a leading `v`, such as `v0.1.1`.
+- `v0.x.y` tags are alpha releases and the release workflow marks them as GitHub prereleases.
+- `v1.0.0` and later tags are normal releases unless the workflow is changed deliberately.
+- Do not move a published tag. Create a new patch tag instead.
+
+Before tagging, update `CHANGELOG.md`, confirm `pyproject.toml` and `link2context.__version__` match, and use `.github/RELEASE_TEMPLATE.md` as the release note checklist.
+
+To run a release dry-run from GitHub Actions, start the `Release` workflow manually. Manual runs build and test release assets without creating or updating a GitHub release.
+
+For a normal tag release:
 
 ```powershell
 git tag -a v0.1.1 -m "Link2Context v0.1.1"
 git push origin v0.1.1
 ```
 
-The `Release` GitHub Actions workflow builds the package, runs tests, creates the GitHub release if needed, and uploads `dist/*` assets.
+For tag pushes, the `Release` GitHub Actions workflow builds the package, runs tests, creates the GitHub release if needed, marks `v0.*` tags as prereleases, and uploads `dist/*` assets.
 
 ## Repository hygiene
 
@@ -31,6 +42,7 @@ The `Release` GitHub Actions workflow builds the package, runs tests, creates th
 - Confirm `README.md`, `CHANGELOG.md`, `LICENSE`, `CONTRIBUTING.md`, and `SECURITY.md` are present.
 - Confirm `.github/workflows/ci.yml` runs the same test command as local verification.
 - Confirm `.github/workflows/release.yml` builds release assets for version tags.
+- Confirm `.github/RELEASE_TEMPLATE.md` reflects the expected verification commands.
 - Confirm `.github/dependabot.yml` tracks GitHub Actions and pip metadata updates.
 - Confirm `.github/pull_request_template.md` and issue templates are present.
 - Confirm `CODE_OF_CONDUCT.md` is present.

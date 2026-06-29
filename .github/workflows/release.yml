@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs: {}
 
 permissions:
   contents: write
@@ -36,9 +38,14 @@ jobs:
         run: python -m build
 
       - name: Create or update GitHub release
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ github.ref_name }}
         run: |
-          gh release view "$TAG_NAME" >/dev/null 2>&1 || gh release create "$TAG_NAME" --title "Link2Context $TAG_NAME" --notes "Automated release for $TAG_NAME."
+          RELEASE_FLAGS=""
+          case "$TAG_NAME" in
+            v0.*) RELEASE_FLAGS="--prerelease" ;;
+          esac
+          gh release view "$TAG_NAME" >/dev/null 2>&1 || gh release create "$TAG_NAME" --title "Link2Context $TAG_NAME" --notes "Automated release for $TAG_NAME." $RELEASE_FLAGS
           gh release upload "$TAG_NAME" dist/* --clobber
