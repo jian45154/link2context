@@ -594,7 +594,7 @@ python -m link2context.store --db data\link2context.db verify-docs outputs\markd
 
 `relations` 会列出图谱中的 subject-predicate-object 关系边，支持按实体和 predicate 过滤，适合检查某个概念与哪些文档/实体发生连接。
 
-`profile` 会为实体和账号返回 `evidence_documents`，并在实体可匹配到段落或保守别名时返回 `evidence_citations`，方便追溯画像来源；实体项会显示平均置信度和来自 `media.text` 的文档数，帮助区分正文信号和 OCR/ASR 回写信号；同时输出最近文档、最近活跃实体和最近活跃账号，帮助 agent 判断用户兴趣的时间变化。也可以输出 Markdown，直接作为本地知识库的兴趣摘要。过泛英文词和 `Article/Image/Video/Markdown/JSON/URL/Content/Context` 等载体词会在画像输出层过滤，底层实体表仍保留原始抽取结果。
+`profile` 会为实体和账号返回 `evidence_documents`，并在实体可匹配到段落或保守别名时返回 `evidence_citations`，方便追溯画像来源；文档数相同时，`top_entities` 会优先排序有 citation 支撑的实体，并返回 `evidence_citation_count`；实体项会显示平均置信度和来自 `media.text` 的文档数，帮助区分正文信号和 OCR/ASR 回写信号；同时输出最近文档、最近活跃实体和最近活跃账号，帮助 agent 判断用户兴趣的时间变化。也可以输出 Markdown，直接作为本地知识库的兴趣摘要。过泛英文词和 `Article/Image/Video/Markdown/JSON/URL/Content/Context/Tool/Model/Page/Text/File/Web` 等载体词会在画像输出层过滤，底层实体表仍保留原始抽取结果。
 
 `brief` 会汇总仓库统计、平台分布、兴趣信号、用户标注、starter queries、主题簇、来源账号、最近文档和推荐查询命令，适合在新 agent 会话开始时直接粘贴。
 

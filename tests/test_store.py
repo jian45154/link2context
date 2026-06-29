@@ -3636,6 +3636,36 @@ def test_interest_profile_matches_citation_aliases_for_topics_and_terms() -> Non
     assert product["evidence_citations"][0]["ref"] == "paragraph_term"
 
 
+def test_interest_profile_ranks_citation_backed_entities_before_uncited_terms() -> None:
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    init_db(conn)
+    html = Path("examples/wechat_sample.html").read_text(encoding="utf-8")
+    cited = build_wechat_context("https://mp.weixin.qq.com/s/cited", html)
+    cited["article"]["title"] = "引用证据"
+    cited["content"]["plain_text"] = "ProductA"
+    cited["agent_package"]["citations"] = [
+        {
+            "ref": "paragraph_cited",
+            "text": "ProductA 是有 citation 支撑的实体。",
+            "source": "article_body",
+        }
+    ]
+    uncited = build_wechat_context("https://mp.weixin.qq.com/s/uncited", html)
+    uncited["article"]["title"] = "无引用证据"
+    uncited["content"]["plain_text"] = "ProductZ"
+    uncited["agent_package"]["citations"] = []
+
+    import_context(conn, cited)
+    import_context(conn, uncited)
+    profile = interest_profile(conn, limit=1)
+
+    assert profile["top_entities"][0]["name"] == "ProductA"
+    assert profile["top_entities"][0]["evidence_citation_count"] == 1
+    assert profile["top_entities"][0]["evidence_citations"][0]["ref"] == "paragraph_cited"
+
+
 def test_interest_profile_filters_generic_terms() -> None:
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
@@ -3643,7 +3673,10 @@ def test_interest_profile_filters_generic_terms() -> None:
     init_db(conn)
     html = Path("examples/wechat_sample.html").read_text(encoding="utf-8")
     context = build_wechat_context("https://mp.weixin.qq.com/s/example", html)
-    context["content"]["plain_text"] += " AI Agent Skill Article Image Video Markdown JSON URL Content Context ProductX"
+    context["content"]["plain_text"] += (
+        " AI Agent Skill Article Image Video Markdown JSON URL Content Context "
+        "Tool Model Page Text File Web ProductX"
+    )
 
     import_context(conn, context)
     profile = interest_profile(conn)
@@ -3661,6 +3694,12 @@ def test_interest_profile_filters_generic_terms() -> None:
         "URL",
         "Content",
         "Context",
+        "Tool",
+        "Model",
+        "Page",
+        "Text",
+        "File",
+        "Web",
     }.isdisjoint(entity_names)
     assert "ProductX" in entity_names
 
@@ -3678,6 +3717,9 @@ def test_render_profile_markdown_includes_evidence() -> None:
                 "media_documents": 1,
                 "evidence_documents": [
                     {"title": "图谱文章", "url": "https://example.com/graph"}
+                ],
+                "evidence_citations": [
+                    {"ref": "paragraph_1", "text": "知识图谱是这篇文章的核心证据。"}
                 ],
             }
         ],
@@ -3723,6 +3765,7 @@ def test_render_profile_markdown_includes_evidence() -> None:
     assert "- wechat_official_account: 2" in markdown
     assert "知识图谱 (topic): 1 document(s), avg confidence 0.80, 1 media-text document(s)" in markdown
     assert "https://example.com/graph" in markdown
+    assert "Citation paragraph_1: 知识图谱是这篇文章的核心证据。" in markdown
     assert "灵渠测试号: 2 document(s)" in markdown
     assert "https://example.com/account" in markdown
     assert "## Recent Documents" in markdown

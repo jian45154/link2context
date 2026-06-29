@@ -83,11 +83,11 @@ python -m link2context.store --db data\link2context.db profile --format markdown
 - `recent_entities`
 - `recent_accounts`
 
-`top_entities` 和 `top_accounts` 会带 `evidence_documents`，用于追溯每个画像条目来自哪些原始内容。实体项还会尽量返回 `evidence_citations`；citation 匹配支持少量保守别名，例如中文标题主题的 2 字以上连续片段、英文空格/连字符/驼峰变体，匹配不到时保留文档级证据。实体项还包含 `avg_confidence` 和 `media_documents`，用于区分正文抽取信号和 OCR/ASR 回写后的 `media.text` 信号。
+`top_entities` 和 `top_accounts` 会带 `evidence_documents`，用于追溯每个画像条目来自哪些原始内容。实体项还会尽量返回 `evidence_citations`；citation 匹配支持少量保守别名，例如中文标题主题的 2 字以上连续片段、英文空格/连字符/驼峰变体，匹配不到时保留文档级证据。`top_entities` 会在文档数相同的候选中优先排序有 citation 支撑的实体，并返回 `evidence_citation_count`。实体项还包含 `avg_confidence` 和 `media_documents`，用于区分正文抽取信号和 OCR/ASR 回写后的 `media.text` 信号。
 
 `recent_*` 字段按 `published_at` 优先、缺失时按 `imported_at` 排序，用于让 agent 判断最近收藏内容和近期活跃兴趣信号。
 
-它只根据已导入 context 的实体、来源元数据和文档时间聚合，不生成缺少证据的人格判断或偏好推断。为了降低噪声，profile 输出层会过滤 `AI`、`Agent`、`Skill` 以及 `Article`、`Image`、`Video`、`Markdown`、`JSON`、`URL`、`Content`、`Context` 等过泛英文/载体词；底层实体表仍保留原始抽取结果，避免丢失数据。
+它只根据已导入 context 的实体、来源元数据和文档时间聚合，不生成缺少证据的人格判断或偏好推断。为了降低噪声，profile 输出层会过滤 `AI`、`Agent`、`Skill` 以及 `Article`、`Image`、`Video`、`Markdown`、`JSON`、`URL`、`Content`、`Context`、`Tool`、`Model`、`Page`、`Text`、`File`、`Web` 等过泛英文/载体词；底层实体表仍保留原始抽取结果，避免丢失数据。
 
 `--format markdown` 可以生成可直接复制给 agent 或写入文档的兴趣画像摘要。
 

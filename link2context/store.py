@@ -27,6 +27,8 @@ PROFILE_TERM_STOP_NAMES = {
     "Articles",
     "Content",
     "Context",
+    "File",
+    "Files",
     "HTML",
     "HTTP",
     "HTTPS",
@@ -36,14 +38,25 @@ PROFILE_TERM_STOP_NAMES = {
     "Link",
     "Links",
     "Markdown",
+    "Model",
+    "Models",
+    "Page",
+    "Pages",
     "Post",
     "Posts",
     "Skill",
     "Skills",
+    "Text",
+    "Texts",
+    "Tool",
+    "Tools",
     "URL",
     "URLs",
     "Video",
     "Videos",
+    "Web",
+    "Website",
+    "Websites",
 }
 PROFILE_ENTITY_STOP_NAMES = PROFILE_TERM_STOP_NAMES
 MEDIA_TEXT_LOW_CONFIDENCE_THRESHOLD = 0.70
@@ -3410,6 +3423,7 @@ def render_entity_explanation_markdown(explanation: dict) -> str:
 
 
 def interest_profile(conn: sqlite3.Connection, limit: int = 20) -> dict:
+    candidate_limit = max(limit * 4, limit)
     stop_names_sql = ", ".join(sql_string_literal(name) for name in sorted(PROFILE_TERM_STOP_NAMES))
     entity_filter = """
         e.type NOT IN ('source_account', 'person_or_author')
@@ -3428,7 +3442,7 @@ def interest_profile(conn: sqlite3.Connection, limit: int = 20) -> dict:
         ORDER BY documents DESC, avg_confidence DESC, e.name ASC
         LIMIT ?
         """,
-        (limit,),
+        (candidate_limit,),
     ).fetchall()
     account_rows = conn.execute(
         """
@@ -3467,8 +3481,10 @@ def interest_profile(conn: sqlite3.Connection, limit: int = 20) -> dict:
         ORDER BY latest_at DESC, documents DESC, avg_confidence DESC, e.name ASC
         LIMIT ?
         """,
-        (min(limit, 10),),
+        (max(min(limit, 10) * 4, min(limit, 10)),),
     ).fetchall()
+    top_entities = profile_entity_entries(conn, entity_rows, 3, limit, sort_entries=True)
+    recent_entities = profile_entity_entries(conn, recent_entity_rows, 2, min(limit, 10), sort_entries=False)
     recent_account_rows = conn.execute(
         """
         SELECT account_name, COUNT(*) AS documents,
@@ -3484,17 +3500,8 @@ def interest_profile(conn: sqlite3.Connection, limit: int = 20) -> dict:
     return {
         "documents": conn.execute("SELECT COUNT(*) AS count FROM documents").fetchone()["count"],
         "top_entities": [
-            {
-                "name": row["name"],
-                "type": row["type"],
-                "documents": row["documents"],
-                "avg_confidence": row["avg_confidence"],
-                "media_documents": row["media_documents"],
-                "evidence_documents": entity_evidence(conn, row["id"], 3),
-                "evidence_citations": entity_citation_evidence(conn, row["id"], row["name"], 3),
-            }
-            for row in entity_rows
-            if row["name"] not in PROFILE_ENTITY_STOP_NAMES
+            entity
+            for entity in top_entities
         ],
         "top_accounts": [
             {
@@ -3522,17 +3529,8 @@ def interest_profile(conn: sqlite3.Connection, limit: int = 20) -> dict:
             for row in recent_document_rows
         ],
         "recent_entities": [
-            {
-                "name": row["name"],
-                "type": row["type"],
-                "documents": row["documents"],
-                "latest_at": row["latest_at"],
-                "avg_confidence": row["avg_confidence"],
-                "media_documents": row["media_documents"],
-                "evidence_documents": entity_evidence(conn, row["id"], 2),
-            }
-            for row in recent_entity_rows
-            if row["name"] not in PROFILE_ENTITY_STOP_NAMES
+            entity
+            for entity in recent_entities
         ],
         "recent_accounts": [
             {
@@ -3545,6 +3543,57 @@ def interest_profile(conn: sqlite3.Connection, limit: int = 20) -> dict:
         ],
         "note": "Conservative profile based only on imported context entities, source metadata, and document chronology.",
     }
+
+
+def profile_entity_entries(
+    conn: sqlite3.Connection,
+    rows: Iterable[sqlite3.Row],
+    evidence_limit: int,
+    limit: int,
+    *,
+    sort_entries: bool,
+) -> list[dict]:
+    entries: list[dict] = []
+    for row in rows:
+        if is_profile_noise_entity(row["name"], row["type"]):
+            continue
+        evidence_citations = entity_citation_evidence(conn, row["id"], row["name"], evidence_limit)
+        entry = {
+            "name": row["name"],
+            "type": row["type"],
+            "documents": row["documents"],
+            "avg_confidence": row["avg_confidence"],
+            "media_documents": row["media_documents"],
+            "evidence_documents": entity_evidence(conn, row["id"], evidence_limit),
+            "evidence_citations": evidence_citations,
+            "evidence_citation_count": len(evidence_citations),
+        }
+        if "latest_at" in row.keys():
+            entry["latest_at"] = row["latest_at"]
+        entries.append(entry)
+    if sort_entries:
+        entries.sort(key=profile_entity_sort_key)
+    return entries[:limit]
+
+
+def profile_entity_sort_key(entity: dict) -> tuple:
+    return (
+        -int(entity.get("documents") or 0),
+        -int(entity.get("evidence_citation_count") or 0),
+        -float(entity.get("avg_confidence") or 0),
+        str(entity.get("name") or "").casefold(),
+    )
+
+
+def is_profile_noise_entity(name: str, entity_type: str | None = None) -> bool:
+    cleaned = str(name or "").strip()
+    if not cleaned:
+        return True
+    if cleaned in PROFILE_ENTITY_STOP_NAMES:
+        return True
+    if entity_type == "term" and cleaned.casefold() in {item.casefold() for item in PROFILE_TERM_STOP_NAMES}:
+        return True
+    return False
 
 
 def render_profile_markdown(profile: dict) -> str:
@@ -3577,6 +3626,8 @@ def render_profile_markdown(profile: dict) -> str:
             )
             for evidence in entity.get("evidence_documents", [])[:2]:
                 parts.append(f"  - {evidence.get('title') or 'Untitled'}: {evidence.get('url')}")
+            for citation in entity.get("evidence_citations", [])[:2]:
+                parts.append(f"  - Citation {citation.get('ref')}: {citation.get('text')}")
         parts.append("")
 
     if profile.get("top_accounts"):
