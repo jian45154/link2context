@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+  <meta property="og:title" content="小红书多媒体笔记">
+  <meta name="description" content="这是一条用于验证多图片和多视频占位的小红书离线测试笔记，正文足够长以避免短壳误判。">
+  <meta property="og:image" content="https://example.com/xhs-media-cover.jpg">
+  <script id="__INITIAL_STATE__" type="application/json">
+  {
+    "note": {
+      "title": "小红书多媒体笔记",
+      "desc": "这是一条用于验证多图片和多视频占位的小红书离线测试笔记，正文足够长以避免短壳误判。",
+      "user": {
+        "nickname": "灵渠测试用户"
+      }
+    }
+  }
+  </script>
+</head>
+<body>
+  <main>
+    <h1>小红书多媒体笔记</h1>
+    <p>第一段：这条笔记用于验证多媒体小红书页面的离线解析。</p>
+    <p>第二段：图片会进入 OCR 占位流程，视频会进入 ASR 和时间轴占位流程。</p>
+    <img src="https://example.com/xhs-media-one.jpg">
+    <img src="https://example.com/xhs-media-two.jpg">
+    <img data-src="https://example.com/xhs-media-three.jpg">
+    <img src="https://example.com/xhs-media-four.jpg">
+    <video src="https://example.com/xhs-video-one.mp4"></video>
+    <video src="https://example.com/xhs-video-two.mp4"></video>
+    <p>第三段：所有素材地址都使用 example.com，保证 fixture 可公开、可重复、无需登录。</p>
+  </main>
+</body>
+</html>

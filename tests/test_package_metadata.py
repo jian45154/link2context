@@ -110,7 +110,11 @@ def test_sdist_contains_public_docs_and_excludes_local_artifacts() -> None:
         "docs/roadmap.md",
         "docs/release-checklist.md",
         "examples/wechat_sample.html",
+        "examples/wechat_partial.html",
+        "examples/wechat_media_heavy.html",
         "examples/xiaohongshu_sample.html",
+        "examples/xiaohongshu_partial.html",
+        "examples/xiaohongshu_media_heavy.html",
         "examples/media-pipeline/fake_ocr.py",
     ]
     forbidden_parts = [

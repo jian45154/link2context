@@ -439,6 +439,32 @@ def test_short_fallback_page_is_partial() -> None:
     assert "title" in context["quality"]["missing_fields"]
 
 
+def test_wechat_partial_fixture_reports_missing_fields_and_warnings() -> None:
+    html = Path("examples/wechat_partial.html").read_text(encoding="utf-8")
+
+    context = build_wechat_context("https://mp.weixin.qq.com/s/partial", html)
+
+    assert context["quality"]["status"] == "partial"
+    assert "Title was not found." in context["quality"]["warnings"]
+    assert any("unusually short" in warning for warning in context["quality"]["warnings"])
+    assert {"title", "account_name", "published_at"} <= set(context["quality"]["missing_fields"])
+    assert context["media"]["images"] == []
+    assert context["media"]["videos"] == []
+
+
+def test_wechat_media_heavy_fixture_extracts_all_media() -> None:
+    html = Path("examples/wechat_media_heavy.html").read_text(encoding="utf-8")
+
+    context = build_wechat_context("https://mp.weixin.qq.com/s/media-heavy", html)
+
+    assert context["quality"]["status"] == "ok"
+    assert context["quality"]["missing_fields"] == []
+    assert len(context["media"]["images"]) == 3
+    assert [image["index"] for image in context["media"]["images"]] == [1, 2, 3]
+    assert len(context["media"]["videos"]) == 2
+    assert [video["index"] for video in context["media"]["videos"]] == [1, 2]
+
+
 def test_read_cookie_from_file(tmp_path: Path) -> None:
     path = tmp_path / "cookie.txt"
     path.write_text("a=1; b=2\n", encoding="utf-8")

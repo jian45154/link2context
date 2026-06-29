@@ -51,6 +51,36 @@ def test_build_xiaohongshu_context_from_sample_html() -> None:
     assert context["quality"]["status"] == "ok"
 
 
+def test_xiaohongshu_partial_fixture_reports_missing_fields_and_warnings() -> None:
+    html = Path("examples/xiaohongshu_partial.html").read_text(encoding="utf-8")
+
+    context = build_xiaohongshu_context("https://www.xiaohongshu.com/explore/partial", html)
+
+    assert context["quality"]["status"] == "empty"
+    assert "Could not find an embedded Xiaohongshu JSON state; parsed meta tags and visible HTML only." in (
+        context["quality"]["warnings"]
+    )
+    assert "Title was not found." in context["quality"]["warnings"]
+    assert "Note text was empty after parsing." in context["quality"]["warnings"]
+    assert {"title", "account_name", "plain_text"} <= set(context["quality"]["missing_fields"])
+    assert context["media"]["images"] == []
+    assert context["media"]["videos"] == []
+
+
+def test_xiaohongshu_media_heavy_fixture_extracts_all_media() -> None:
+    html = Path("examples/xiaohongshu_media_heavy.html").read_text(encoding="utf-8")
+
+    context = build_xiaohongshu_context("https://www.xiaohongshu.com/explore/media-heavy", html)
+
+    assert context["quality"]["status"] == "ok"
+    assert context["quality"]["missing_fields"] == []
+    assert len(context["media"]["images"]) == 5
+    assert context["media"]["images"][0]["url"] == "https://example.com/xhs-media-cover.jpg"
+    assert [image["index"] for image in context["media"]["images"]] == [1, 2, 3, 4, 5]
+    assert len(context["media"]["videos"]) == 2
+    assert [video["index"] for video in context["media"]["videos"]] == [1, 2]
+
+
 def test_xiaohongshu_boilerplate_is_removed() -> None:
     html = """
     <html>
