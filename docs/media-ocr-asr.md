@@ -69,18 +69,20 @@ Useful template fields include `{input_source}`, `{input_path}`, `{input_url}`, 
 
 ## Video Or Audio ASR With Sona/Vibe
 
-Sona is available as a preset for local whisper.cpp-style transcription. Link2Context does not bundle Sona, Vibe, Whisper models, or media files.
+Sona and Vibe are available as presets for local whisper.cpp-style transcription. Link2Context does not bundle Sona, Vibe, Whisper models, or media files.
 
 Inspect model and executable readiness:
 
 ```powershell
 python -m link2context.store --db data/link2context.db media-text-presets --preset-model models/ggml-small.bin --tool-path C:\Tools\sona.exe --format markdown
+python -m link2context.store --db data/link2context.db media-text-presets --preset-model models/ggml-small.bin --tool-path C:\Tools\vibe.exe --format markdown
 ```
 
 Run ASR over video queue items:
 
 ```powershell
 python -m link2context.store --db data/link2context.db run-media-text --kind video --out outputs/asr-results.jsonl --preset sona --preset-model models/ggml-small.bin --tool-path C:\Tools\sona.exe --language zh --apply --reindex
+python -m link2context.store --db data/link2context.db run-media-text --kind video --out outputs/vibe-asr-results.jsonl --preset vibe --preset-model models/ggml-small.bin --tool-path C:\Tools\vibe.exe --language zh --apply --reindex
 python -m link2context.store --db data/link2context.db verify-media-text outputs/asr-results.jsonl --require-reindex
 ```
 

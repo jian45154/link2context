@@ -254,7 +254,7 @@ def _videos(urls: list[str]) -> list[dict]:
         {
             "index": index,
             "embed_url": url,
-            "status": "unresolved",
+            "status": "not_processed",
             "analysis": {
                 "status": "not_processed",
                 "transcript": [],

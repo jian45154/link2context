@@ -259,7 +259,7 @@ def _videos(videos: list[dict]) -> list[dict]:
         {
             "index": index,
             "embed_url": video.get("url"),
-            "status": "unresolved",
+            "status": "not_processed",
             "analysis": {
                 "status": "not_processed",
                 "transcript": [],
