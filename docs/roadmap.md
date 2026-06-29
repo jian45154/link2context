@@ -11,11 +11,11 @@ This roadmap is intentionally conservative. Link2Context is an open-source, loca
 
 ## Next
 
-- Improve real-world OCR/ASR examples without bundling a specific recognition engine.
-- Add more fixture coverage for partial platform pages and media-heavy posts.
-- Improve graph/profile heuristics while preserving citation evidence.
-- Add clearer import/export contracts for external tools such as Markdown knowledge bases and graph databases.
-- Tighten release automation after the repository has a confirmed GitHub remote and tag policy.
+- Improve real-world OCR/ASR examples without bundling a specific recognition engine. See [#5](https://github.com/jian45154/link2context/issues/5).
+- Add more fixture coverage for partial platform pages and media-heavy posts. See [#3](https://github.com/jian45154/link2context/issues/3).
+- Improve graph/profile heuristics while preserving citation evidence. See [#4](https://github.com/jian45154/link2context/issues/4).
+- Add clearer import/export contracts for external tools such as Markdown knowledge bases and graph databases. See [#6](https://github.com/jian45154/link2context/issues/6).
+- Tighten release automation after the repository has a confirmed GitHub remote and tag policy. See [#7](https://github.com/jian45154/link2context/issues/7).
 
 ## Later
 
