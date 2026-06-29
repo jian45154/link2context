@@ -21,6 +21,7 @@
       --code: #101816;
       --code-soft: #d5e5dc;
       --shadow: 0 24px 80px rgba(38, 31, 19, 0.12);
+      --shadow-soft: 0 14px 42px rgba(38, 31, 19, 0.08);
     }
 
     * {
@@ -33,7 +34,10 @@
 
     body {
       margin: 0;
-      background: var(--paper);
+      background:
+        linear-gradient(90deg, rgba(25, 35, 31, 0.035) 1px, transparent 1px) 0 0 / 72px 72px,
+        linear-gradient(rgba(25, 35, 31, 0.026) 1px, transparent 1px) 0 0 / 72px 72px,
+        var(--paper);
       color: var(--ink);
       font-family: ui-serif, Georgia, "Times New Roman", "Noto Serif SC", serif;
       line-height: 1.55;
@@ -96,9 +100,47 @@
       font-size: 0.92rem;
     }
 
+    .lang-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 250, 240, 0.58);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .lang-switch button {
+      min-width: 38px;
+      min-height: 28px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 720;
+    }
+
+    .lang-switch button[aria-pressed="true"] {
+      background: var(--ink);
+      color: var(--paper);
+    }
+
     .hero {
+      position: relative;
       padding: 82px 0 70px;
       border-bottom: 1px solid var(--line);
+    }
+
+    .hero::before {
+      position: absolute;
+      inset: 22px 0 auto;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(47, 111, 94, 0.34), transparent);
+      content: "";
     }
 
     .hero-grid {
@@ -140,6 +182,40 @@
       font-size: clamp(1.12rem, 2vw, 1.36rem);
     }
 
+    .hero-meta {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      max-width: 650px;
+      margin-top: 30px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--line);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .hero-meta div {
+      min-height: 82px;
+      padding: 16px 18px;
+      background: rgba(255, 250, 240, 0.72);
+    }
+
+    .hero-meta b {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--green-dark);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .hero-meta span {
+      color: var(--muted);
+      font-size: 0.96rem;
+    }
+
     .actions {
       display: flex;
       flex-wrap: wrap;
@@ -160,6 +236,7 @@
       color: var(--paper);
       text-decoration: none;
       font-weight: 720;
+      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
     }
 
     .button.secondary {
@@ -168,7 +245,20 @@
       color: var(--ink);
     }
 
+    .button:hover {
+      transform: translateY(-1px);
+      background: var(--green-dark);
+      border-color: var(--green-dark);
+      color: var(--paper);
+    }
+
+    .button.secondary:hover {
+      background: var(--field);
+      color: var(--green-dark);
+    }
+
     .terminal {
+      position: relative;
       overflow: hidden;
       border: 1px solid rgba(25, 35, 31, 0.18);
       border-radius: 8px;
@@ -176,6 +266,16 @@
       color: #eaf3ee;
       box-shadow: var(--shadow);
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    .terminal::after {
+      position: absolute;
+      inset: auto 18px 16px auto;
+      color: rgba(234, 243, 238, 0.34);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      content: "local output";
     }
 
     .terminal-head {
@@ -263,6 +363,13 @@
       border: 1px solid var(--line);
       border-radius: 8px;
       background: rgba(255, 250, 240, 0.56);
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+
+    .feature:hover {
+      transform: translateY(-2px);
+      border-color: rgba(47, 111, 94, 0.42);
+      background: rgba(255, 250, 240, 0.86);
     }
 
     .feature b {
@@ -287,6 +394,59 @@
       font-size: 0.97rem;
     }
 
+    .platform-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .platform {
+      min-height: 172px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 250, 240, 0.68);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .platform-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 26px;
+    }
+
+    .platform-logo {
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+    }
+
+    .platform-state {
+      padding: 4px 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--green-dark);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.72rem;
+      font-weight: 760;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .platform h3 {
+      margin: 0 0 8px;
+      font-size: 1.22rem;
+      line-height: 1.16;
+    }
+
+    .platform p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
     .pipeline {
       display: grid;
       grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -294,6 +454,7 @@
       border-radius: 8px;
       background: var(--field);
       overflow: hidden;
+      box-shadow: var(--shadow-soft);
     }
 
     .stage {
@@ -345,6 +506,13 @@
       border-radius: 8px;
       background: var(--field);
       text-decoration: none;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+
+    .doc-link:hover {
+      transform: translateY(-2px);
+      border-color: rgba(47, 111, 94, 0.42);
+      background: #fffdf7;
     }
 
     .doc-link strong {
@@ -373,6 +541,16 @@
       background: var(--field-strong);
     }
 
+    .note-kicker {
+      margin: 0 0 18px;
+      color: var(--rust);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.76rem;
+      font-weight: 760;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
     .note h3 {
       margin: 0 0 12px;
       font-size: 1.45rem;
@@ -395,6 +573,33 @@
       line-height: 1.7;
     }
 
+    .closing {
+      padding: 48px 0;
+      background: rgba(236, 228, 213, 0.5);
+    }
+
+    .closing-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 28px;
+    }
+
+    .closing strong {
+      display: block;
+      max-width: 760px;
+      font-size: clamp(1.55rem, 3vw, 2.5rem);
+      line-height: 1.08;
+      text-wrap: pretty;
+    }
+
+    .closing span {
+      display: block;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
     .footer {
       padding: 34px 0 46px;
       color: var(--muted);
@@ -405,12 +610,18 @@
     @media (max-width: 920px) {
       .hero-grid,
       .section-head,
-      .split {
+      .split,
+      .closing-inner {
         grid-template-columns: 1fr;
       }
 
+      .closing-inner {
+        display: grid;
+      }
+
       .feature-grid,
-      .docs-grid {
+      .docs-grid,
+      .platform-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
@@ -446,6 +657,10 @@
         padding-bottom: 2px;
       }
 
+      .lang-switch {
+        align-self: flex-start;
+      }
+
       .hero {
         padding-top: 56px;
       }
@@ -454,8 +669,13 @@
         font-size: clamp(2.7rem, 15vw, 4.2rem);
       }
 
+      .hero-meta {
+        grid-template-columns: 1fr;
+      }
+
       .feature-grid,
-      .docs-grid {
+      .docs-grid,
+      .platform-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -466,11 +686,16 @@
     <div class="shell topbar-inner">
       <div class="brand">灵渠 <span>Link2Context</span></div>
       <nav class="nav" aria-label="Project navigation">
-        <a href="#features">能力</a>
-        <a href="#pipeline">流程</a>
-        <a href="#docs">文档</a>
+        <a href="#features" data-i18n="nav.features">能力</a>
+        <a href="#platforms" data-i18n="nav.platforms">平台</a>
+        <a href="#pipeline" data-i18n="nav.pipeline">流程</a>
+        <a href="#docs" data-i18n="nav.docs">文档</a>
         <a href="https://github.com/jian45154/link2context">GitHub</a>
       </nav>
+      <div class="lang-switch" aria-label="Language">
+        <button type="button" data-lang="zh" aria-pressed="true">中</button>
+        <button type="button" data-lang="en" aria-pressed="false">EN</button>
+      </div>
     </div>
   </header>
 
@@ -478,15 +703,29 @@
     <section class="hero">
       <div class="shell hero-grid">
         <div>
-          <p class="eyebrow">local-first context compiler</p>
-          <h1>把收藏链接编译成 agent-ready context。</h1>
-          <p class="subtitle">
+          <p class="eyebrow" data-i18n="hero.eyebrow">local-first context compiler</p>
+          <h1 data-i18n="hero.title">把收藏链接编译成 agent-ready context。</h1>
+          <p class="subtitle" data-i18n="hero.subtitle">
             Link2Context 是一个开源 CLI / Python library，把公开文章、社媒图文和媒体线索整理成
             <code>context.json</code>、<code>context.md</code>、本地 store、知识图谱输入和 agent 查询包。
           </p>
+          <div class="hero-meta" aria-label="Project attributes">
+            <div>
+              <b>Status</b>
+              <span data-i18n="hero.status">Alpha, built for local development and fixture-backed testing.</span>
+            </div>
+            <div>
+              <b>License</b>
+              <span data-i18n="hero.license">MIT licensed, GitHub-first, open for extension.</span>
+            </div>
+            <div>
+              <b>Boundary</b>
+              <span data-i18n="hero.boundary">No hosted service, no platform bypass, no interaction scraping.</span>
+            </div>
+          </div>
           <div class="actions">
-            <a class="button" href="https://github.com/jian45154/link2context">查看源码</a>
-            <a class="button secondary" href="docs/quickstart.md">运行 Quickstart</a>
+            <a class="button" href="https://github.com/jian45154/link2context" data-i18n="hero.source">查看源码</a>
+            <a class="button secondary" href="docs/index.html?doc=quickstart" data-i18n="hero.quickstart">运行 Quickstart</a>
           </div>
         </div>
 
@@ -513,8 +752,8 @@ quality:
     <section id="features">
       <div class="shell">
         <div class="section-head">
-          <h2>项目能力</h2>
-          <p class="section-copy">
+          <h2 data-i18n="features.title">项目能力</h2>
+          <p class="section-copy" data-i18n="features.copy">
             当前重点很窄：保守采集、统一上下文、离线回归、本地查询。它不是下载器，也不是平台自动化工具。
           </p>
         </div>
@@ -522,23 +761,69 @@ quality:
         <div class="feature-grid">
           <article class="feature">
             <b>Sources</b>
-            <h3>公开链接输入</h3>
-            <p>支持公开微信公众号文章 URL 和公开小红书笔记 URL 的保守 HTML 解析。</p>
+            <h3 data-i18n="features.sourcesTitle">公开链接输入</h3>
+            <p data-i18n="features.sourcesCopy">支持公开微信公众号文章 URL 和公开小红书笔记 URL 的保守 HTML 解析。</p>
           </article>
           <article class="feature">
             <b>Context</b>
-            <h3>统一输出契约</h3>
-            <p>抽取标题、作者、时间、摘要、正文、图片和视频占位信息，输出稳定 context 文件。</p>
+            <h3 data-i18n="features.contextTitle">统一输出契约</h3>
+            <p data-i18n="features.contextCopy">抽取标题、作者、时间、摘要、正文、图片和视频占位信息，输出稳定 context 文件。</p>
           </article>
           <article class="feature">
             <b>Store</b>
-            <h3>本地知识入口</h3>
-            <p>将 context 导入 SQLite store，再导出 graph、profile 和 agent query package。</p>
+            <h3 data-i18n="features.storeTitle">本地知识入口</h3>
+            <p data-i18n="features.storeCopy">将 context 导入 SQLite store，再导出 graph、profile 和 agent query package。</p>
           </article>
           <article class="feature">
             <b>Boundary</b>
-            <h3>清晰平台边界</h3>
-            <p>不绕过登录和风控，不采集评论点赞，不提交 Cookie、token 或私有内容。</p>
+            <h3 data-i18n="features.boundaryTitle">清晰平台边界</h3>
+            <p data-i18n="features.boundaryCopy">不绕过登录和风控，不采集评论点赞，不提交 Cookie、token 或私有内容。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="platforms">
+      <div class="shell">
+        <div class="section-head">
+          <h2 data-i18n="platforms.title">适配平台</h2>
+          <p class="section-copy" data-i18n="platforms.copy">
+            当前把平台状态讲清楚：已支持的社媒链接走保守 HTML 解析；视频和网页来源通过媒体适配与后续输入契约进入管线。
+          </p>
+        </div>
+
+        <div class="platform-grid">
+          <article class="platform">
+            <div class="platform-head">
+              <img class="platform-logo" src="https://cdn.simpleicons.org/wechat/07C160" alt="WeChat logo">
+              <span class="platform-state" data-i18n="platforms.supported">Supported</span>
+            </div>
+            <h3 data-i18n="platforms.wechatTitle">微信公众号</h3>
+            <p data-i18n="platforms.wechatCopy">公开文章 URL 到结构化 context，适合离线 fixture 和批量处理。</p>
+          </article>
+          <article class="platform">
+            <div class="platform-head">
+              <img class="platform-logo" src="https://cdn.simpleicons.org/xiaohongshu/FF2442" alt="Xiaohongshu logo">
+              <span class="platform-state" data-i18n="platforms.supported">Supported</span>
+            </div>
+            <h3 data-i18n="platforms.xhsTitle">小红书</h3>
+            <p data-i18n="platforms.xhsCopy">公开笔记 URL 的保守 HTML 解析，Cookie 仅作为本地请求头使用。</p>
+          </article>
+          <article class="platform">
+            <div class="platform-head">
+              <img class="platform-logo" src="https://cdn.simpleicons.org/bilibili/00A1D6" alt="Bilibili logo">
+              <span class="platform-state" data-i18n="platforms.media">Media path</span>
+            </div>
+            <h3 data-i18n="platforms.bilibiliTitle">B站视频</h3>
+            <p data-i18n="platforms.bilibiliCopy">面向视频 ASR、时间轴和引用定位的输入方向，保持本地外部命令适配。</p>
+          </article>
+          <article class="platform">
+            <div class="platform-head">
+              <img class="platform-logo" src="https://cdn.simpleicons.org/youtube/FF0000" alt="YouTube logo">
+              <span class="platform-state" data-i18n="platforms.media">Media path</span>
+            </div>
+            <h3 data-i18n="platforms.youtubeTitle">YouTube / Web</h3>
+            <p data-i18n="platforms.youtubeCopy">用于网页、视频、图文和 PDF 进入统一 context schema 的后续扩展。</p>
           </article>
         </div>
       </div>
@@ -547,8 +832,8 @@ quality:
     <section id="pipeline">
       <div class="shell">
         <div class="section-head">
-          <h2>工作流</h2>
-          <p class="section-copy">
+          <h2 data-i18n="pipeline.title">工作流</h2>
+          <p class="section-copy" data-i18n="pipeline.copy">
             长期目标是一条可自托管、可二次开发的本地内容编译管线：从链接进入，到上下文、图谱、检索和 agent handoff。
           </p>
         </div>
@@ -586,36 +871,36 @@ quality:
     <section id="docs">
       <div class="shell">
         <div class="section-head">
-          <h2>文档入口</h2>
-          <p class="section-copy">
+          <h2 data-i18n="docs.title">文档入口</h2>
+          <p class="section-copy" data-i18n="docs.copy">
             README 保留完整命令和 schema 说明；专题文档用于解释架构、契约、媒体流程和开源发布检查。
           </p>
         </div>
 
         <div class="docs-grid">
-          <a class="doc-link" href="README.md">
+          <a class="doc-link" href="docs/index.html?doc=readme">
             <strong>README</strong>
-            <span>项目概览、安装命令、核心 CLI 工作流和 schema 说明。</span>
+            <span data-i18n="docs.readme">项目概览、安装命令、核心 CLI 工作流和 schema 说明。</span>
           </a>
-          <a class="doc-link" href="docs/quickstart.md">
+          <a class="doc-link" href="docs/index.html?doc=quickstart">
             <strong>Quickstart</strong>
-            <span>最小离线闭环：context 文件、store query 和 handoff export。</span>
+            <span data-i18n="docs.quickstart">最小离线闭环：context 文件、store query 和 handoff export。</span>
           </a>
-          <a class="doc-link" href="docs/architecture.md">
+          <a class="doc-link" href="docs/index.html?doc=architecture">
             <strong>Architecture</strong>
-            <span>模块、数据流、契约和边界。</span>
+            <span data-i18n="docs.architecture">模块、数据流、契约和边界。</span>
           </a>
-          <a class="doc-link" href="docs/export-contracts.md">
+          <a class="doc-link" href="docs/index.html?doc=export-contracts">
             <strong>Export Contracts</strong>
-            <span>稳定文件、可选字段和外部工具校验命令。</span>
+            <span data-i18n="docs.export">稳定文件、可选字段和外部工具校验命令。</span>
           </a>
-          <a class="doc-link" href="docs/media-ocr-asr.md">
+          <a class="doc-link" href="docs/index.html?doc=media-ocr-asr">
             <strong>Media OCR / ASR</strong>
-            <span>fake、Tesseract、Sona/Vibe 和自定义命令模板。</span>
+            <span data-i18n="docs.media">fake、Tesseract、Sona/Vibe 和自定义命令模板。</span>
           </a>
-          <a class="doc-link" href="docs/roadmap.md">
+          <a class="doc-link" href="docs/index.html?doc=roadmap">
             <strong>Roadmap</strong>
-            <span>近期里程碑和后续开源方向。</span>
+            <span data-i18n="docs.roadmap">近期里程碑和后续开源方向。</span>
           </a>
         </div>
       </div>
@@ -624,8 +909,9 @@ quality:
     <section>
       <div class="shell split">
         <div class="note">
-          <h3>Alpha, local-first, GitHub-first.</h3>
-          <p>
+          <p class="note-kicker" data-i18n="stance.kicker">Project stance</p>
+          <h3 data-i18n="stance.title">Alpha, local-first, GitHub-first.</h3>
+          <p data-i18n="stance.copy">
             适合本地自用、开发者二次开发和离线 fixture 回归测试。项目不提供托管账号服务，也不做平台写操作自动化。
           </p>
         </div>
@@ -636,12 +922,151 @@ python -m link2context --verify-batch outputs/batch
 python -m link2context.store query data/context-store.sqlite --q "agent"</pre>
       </div>
     </section>
+
+    <section class="closing" aria-label="Project close">
+      <div class="shell closing-inner">
+        <div>
+          <strong data-i18n="closing.title">从收藏到上下文，不经过托管黑箱。</strong>
+          <span data-i18n="closing.copy">所有输出都留在本地文件和本地数据库里，方便审计、复现和交给 agent 使用。</span>
+        </div>
+        <a class="button" href="docs/index.html" data-i18n="closing.docs">阅读完整文档</a>
+      </div>
+    </section>
   </main>
 
   <footer class="footer">
-    <div class="shell">
+    <div class="shell" data-i18n="footer">
       MIT Licensed. Built for local context, inspectable evidence, and agent handoff.
     </div>
   </footer>
+  <script>
+    const copy = {
+      zh: {
+        "nav.features": "能力",
+        "nav.platforms": "平台",
+        "nav.pipeline": "流程",
+        "nav.docs": "文档",
+        "hero.eyebrow": "local-first context compiler",
+        "hero.title": "把收藏链接编译成 agent-ready context。",
+        "hero.subtitle": "Link2Context 是一个开源 CLI / Python library，把公开文章、社媒图文和媒体线索整理成 context.json、context.md、本地 store、知识图谱输入和 agent 查询包。",
+        "hero.status": "Alpha，适合本地开发和离线 fixture 回归测试。",
+        "hero.license": "MIT 许可，GitHub-first，可二次开发。",
+        "hero.boundary": "不做托管服务、不绕过平台、不采集互动数据。",
+        "hero.source": "查看源码",
+        "hero.quickstart": "运行 Quickstart",
+        "features.title": "项目能力",
+        "features.copy": "当前重点很窄：保守采集、统一上下文、离线回归、本地查询。它不是下载器，也不是平台自动化工具。",
+        "features.sourcesTitle": "公开链接输入",
+        "features.sourcesCopy": "支持公开微信公众号文章 URL 和公开小红书笔记 URL 的保守 HTML 解析。",
+        "features.contextTitle": "统一输出契约",
+        "features.contextCopy": "抽取标题、作者、时间、摘要、正文、图片和视频占位信息，输出稳定 context 文件。",
+        "features.storeTitle": "本地知识入口",
+        "features.storeCopy": "将 context 导入 SQLite store，再导出 graph、profile 和 agent query package。",
+        "features.boundaryTitle": "清晰平台边界",
+        "features.boundaryCopy": "不绕过登录和风控，不采集评论点赞，不提交 Cookie、token 或私有内容。",
+        "platforms.title": "适配平台",
+        "platforms.copy": "当前把平台状态讲清楚：已支持的社媒链接走保守 HTML 解析；视频和网页来源通过媒体适配与后续输入契约进入管线。",
+        "platforms.supported": "Supported",
+        "platforms.media": "Media path",
+        "platforms.wechatTitle": "微信公众号",
+        "platforms.wechatCopy": "公开文章 URL 到结构化 context，适合离线 fixture 和批量处理。",
+        "platforms.xhsTitle": "小红书",
+        "platforms.xhsCopy": "公开笔记 URL 的保守 HTML 解析，Cookie 仅作为本地请求头使用。",
+        "platforms.bilibiliTitle": "B站视频",
+        "platforms.bilibiliCopy": "面向视频 ASR、时间轴和引用定位的输入方向，保持本地外部命令适配。",
+        "platforms.youtubeTitle": "YouTube / Web",
+        "platforms.youtubeCopy": "用于网页、视频、图文和 PDF 进入统一 context schema 的后续扩展。",
+        "pipeline.title": "工作流",
+        "pipeline.copy": "长期目标是一条可自托管、可二次开发的本地内容编译管线：从链接进入，到上下文、图谱、检索和 agent handoff。",
+        "docs.title": "文档入口",
+        "docs.copy": "README 保留完整命令和 schema 说明；专题文档用于解释架构、契约、媒体流程和开源发布检查。",
+        "docs.readme": "项目概览、安装命令、核心 CLI 工作流和 schema 说明。",
+        "docs.quickstart": "最小离线闭环：context 文件、store query 和 handoff export。",
+        "docs.architecture": "模块、数据流、契约和边界。",
+        "docs.export": "稳定文件、可选字段和外部工具校验命令。",
+        "docs.media": "fake、Tesseract、Sona/Vibe 和自定义命令模板。",
+        "docs.roadmap": "近期里程碑和后续开源方向。",
+        "stance.kicker": "Project stance",
+        "stance.title": "Alpha, local-first, GitHub-first.",
+        "stance.copy": "适合本地自用、开发者二次开发和离线 fixture 回归测试。项目不提供托管账号服务，也不做平台写操作自动化。",
+        "closing.title": "从收藏到上下文，不经过托管黑箱。",
+        "closing.copy": "所有输出都留在本地文件和本地数据库里，方便审计、复现和交给 agent 使用。",
+        "closing.docs": "阅读完整文档",
+        "footer": "MIT Licensed. Built for local context, inspectable evidence, and agent handoff."
+      },
+      en: {
+        "nav.features": "Features",
+        "nav.platforms": "Platforms",
+        "nav.pipeline": "Pipeline",
+        "nav.docs": "Docs",
+        "hero.eyebrow": "local-first context compiler",
+        "hero.title": "Compile saved links into agent-ready context.",
+        "hero.subtitle": "Link2Context is an open-source CLI and Python library that turns public articles, social posts, and media traces into context.json, context.md, a local store, graph inputs, and agent query packages.",
+        "hero.status": "Alpha, built for local development and offline fixture regression tests.",
+        "hero.license": "MIT licensed, GitHub-first, open for extension.",
+        "hero.boundary": "No hosted service, no platform bypass, no interaction scraping.",
+        "hero.source": "View source",
+        "hero.quickstart": "Run Quickstart",
+        "features.title": "What It Does",
+        "features.copy": "The scope is intentionally narrow: conservative collection, normalized context, offline regression, and local query. It is not a downloader or platform automation tool.",
+        "features.sourcesTitle": "Public link input",
+        "features.sourcesCopy": "Supports public WeChat article URLs and conservative HTML parsing for public Xiaohongshu note URLs.",
+        "features.contextTitle": "Stable context contract",
+        "features.contextCopy": "Extracts title, author, time, summary, body, images, and video placeholders into stable context files.",
+        "features.storeTitle": "Local knowledge entry",
+        "features.storeCopy": "Imports context into SQLite, then exports graph, profile, and agent query packages.",
+        "features.boundaryTitle": "Clear platform boundary",
+        "features.boundaryCopy": "No login bypass, no risk-control bypass, no comments or likes, and no committed cookies or private content.",
+        "platforms.title": "Platform Adapters",
+        "platforms.copy": "The status is explicit: supported social links use conservative HTML parsing; video and web sources enter through media adapters and future input contracts.",
+        "platforms.supported": "Supported",
+        "platforms.media": "Media path",
+        "platforms.wechatTitle": "WeChat Articles",
+        "platforms.wechatCopy": "Public article URLs to structured context, suitable for offline fixtures and batch processing.",
+        "platforms.xhsTitle": "Xiaohongshu",
+        "platforms.xhsCopy": "Conservative parsing for public note URLs; cookies are only used as local request headers.",
+        "platforms.bilibiliTitle": "Bilibili Video",
+        "platforms.bilibiliCopy": "Input direction for video ASR, timelines, and citation anchors via local external command adapters.",
+        "platforms.youtubeTitle": "YouTube / Web",
+        "platforms.youtubeCopy": "Future path for web pages, videos, image posts, and PDFs entering the unified context schema.",
+        "pipeline.title": "Pipeline",
+        "pipeline.copy": "The long-term goal is a self-hostable local content compilation pipeline: links in, context, graph, retrieval, and agent handoff out.",
+        "docs.title": "Documentation",
+        "docs.copy": "README keeps complete commands and schema notes; topic docs explain architecture, contracts, media workflows, and release checks.",
+        "docs.readme": "Project overview, install command, core CLI workflows, and schema notes.",
+        "docs.quickstart": "Minimal offline loop from context files to store query and handoff export.",
+        "docs.architecture": "Modules, data flow, contracts, and boundaries.",
+        "docs.export": "Stable files, optional fields, and verification commands for external tools.",
+        "docs.media": "Fake, Tesseract, Sona/Vibe, and custom command-template examples.",
+        "docs.roadmap": "Near-term milestones and later open-source direction.",
+        "stance.kicker": "Project stance",
+        "stance.title": "Alpha, local-first, GitHub-first.",
+        "stance.copy": "Suitable for local personal use, developer extension, and offline fixture regression tests. The project does not provide hosted accounts or platform write automation.",
+        "closing.title": "From saved links to context, without a hosted black box.",
+        "closing.copy": "Outputs stay in local files and local databases, making them inspectable, reproducible, and ready for agents.",
+        "closing.docs": "Read the docs",
+        "footer": "MIT Licensed. Built for local context, inspectable evidence, and agent handoff."
+      }
+    };
+
+    function setLanguage(lang) {
+      const active = copy[lang] ? lang : "zh";
+      document.documentElement.lang = active === "zh" ? "zh-CN" : "en";
+      document.querySelectorAll("[data-i18n]").forEach((node) => {
+        const value = copy[active][node.dataset.i18n];
+        if (value) node.textContent = value;
+      });
+      document.querySelectorAll("[data-lang]").forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.lang === active));
+      });
+      localStorage.setItem("link2context-lang", active);
+    }
+
+    document.querySelectorAll("[data-lang]").forEach((button) => {
+      button.addEventListener("click", () => setLanguage(button.dataset.lang));
+    });
+
+    setLanguage(localStorage.getItem("link2context-lang") || "zh");
+  </script>
 </body>
 </html>
