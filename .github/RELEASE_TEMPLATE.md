@@ -2,7 +2,14 @@
 
 ## Highlights
 
-- 
+- Short user-facing summary of the release.
+- Key fixes, workflows, or compatibility changes worth calling out.
+
+## Changes
+
+- Added:
+- Changed:
+- Fixed:
 
 ## Verification
 
@@ -14,9 +21,9 @@
 
 - Python: 3.10+
 - Storage: local SQLite
-- Network: live platform requests remain optional; offline fixture workflows should continue to pass.
+- Network: live platform requests are optional; offline fixture workflows should continue to pass.
 
-## Notes
+## Release Notes
 
 - Do not include cookies, tokens, private exports, downloaded media, or local database files in release assets.
 - Releases before `v1.0.0` are alpha/prerelease builds unless explicitly promoted.

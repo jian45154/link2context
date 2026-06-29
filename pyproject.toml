@@ -1,6 +1,6 @@
 [project]
 name = "link2context"
-version = "0.1.0"
+version = "0.1.1"
 description = "Lingqu / Link2Context: turn saved links and social content into an agent-ready knowledge store."
 readme = "README.md"
 license = "MIT"

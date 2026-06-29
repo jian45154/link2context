@@ -2,6 +2,19 @@
 
 All notable project changes should be recorded here once the repository starts using tagged releases.
 
+## 0.1.1 - Alpha
+
+### Added
+
+- English README entry point for the public repository.
+- GitHub Pages landing page with bilingual copy, platform adapter cards, and HTML documentation entry points.
+- HTML documentation hub at `docs/index.html` with links back to Markdown source documents.
+
+### Changed
+
+- Updated release template structure for clearer highlights, change categories, verification, compatibility, and release notes.
+- Included the root landing page and HTML docs in source distributions.
+
 ## 0.1.0 - Alpha
 
 Initial open-source baseline.
