@@ -1,0 +1,17 @@
+.secrets/
+.env
+.env.*
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.db
+*.sqlite
+*.sqlite3
+build/
+dist/
+data/
+models/
+outputs/
+work/
+graphify-out/

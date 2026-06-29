@@ -1,0 +1,5 @@
+# One Xiaohongshu note URL per line.
+# Blank lines and comments are ignored.
+# Use your own live URLs locally; do not commit share tokens or private query strings.
+https://www.xiaohongshu.com/explore/example-note-one
+https://www.xiaohongshu.com/discovery/item/example-note-two

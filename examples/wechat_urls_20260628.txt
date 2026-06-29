@@ -1,0 +1,5 @@
+# One WeChat article URL per line.
+# Blank lines and comments are ignored.
+https://mp.weixin.qq.com/s/example-one
+https://mp.weixin.qq.com/s/example-two
+https://mp.weixin.qq.com/s/example-three

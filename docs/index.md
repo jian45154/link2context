@@ -1,0 +1,29 @@
+# Documentation Index
+
+Link2Context is an open-source, local-first CLI and Python library for turning saved links and social content into agent-ready context and local knowledge-graph inputs.
+
+## Start here
+
+- [README](../README.md): project overview, install command, core CLI workflows.
+- [Quickstart](quickstart.md): offline fixture workflow from context files to store query and handoff export.
+- [Changelog](../CHANGELOG.md): release notes and notable project changes.
+- [Roadmap](roadmap.md): near-term and later open-source direction.
+- [Open Source Goal](product-goal.md): project scope, non-goals, and milestones.
+- [Release Checklist](release-checklist.md): local checks before publishing or tagging.
+- [Security Policy](../SECURITY.md): secret handling, platform boundaries, and vulnerability reporting.
+- [Contributing](../CONTRIBUTING.md): local setup, PR checks, and contribution principles.
+
+## Technical notes
+
+- [Architecture](architecture.md): modules, data flow, contracts, and boundaries.
+- [Graph MVP](graph-mvp.md): entity, relationship, graph export, and profile scope.
+- [Agent Query MVP](agent-query-mvp.md): keyword query package and retrieval sources.
+- [Open Source Landscape Scan](competitive-scan.md): adjacent public projects and positioning.
+
+## Local verification
+
+```powershell
+python -m pip install -e ".[dev]" --dry-run
+python -m compileall -q link2context tests
+python -m pytest tests -q
+```

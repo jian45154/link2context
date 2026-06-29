@@ -1,0 +1,40 @@
+[project]
+name = "link2context"
+version = "0.1.0"
+description = "Lingqu / Link2Context: turn saved links and social content into an agent-ready knowledge store."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "Lucien Auregin" },
+]
+keywords = ["ai-agent", "knowledge-graph", "wechat", "xiaohongshu", "ocr", "asr"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Text Processing",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "build>=1",
+    "pytest>=8",
+    "tomli>=2; python_version < '3.11'",
+]
+
+[project.scripts]
+link2context = "link2context.cli:main"
+link2context-store = "link2context.store:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["link2context*"]

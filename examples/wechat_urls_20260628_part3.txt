@@ -1,0 +1,2 @@
+# Additional sanitized WeChat URL-list example.
+https://mp.weixin.qq.com/s/example-six
