@@ -24,4 +24,5 @@ verify-media-text --require-reindex
 
 For real runs, replace `fake_ocr.py` with a production OCR/ASR command such as
 Tesseract, Sona, Vibe, or another local recognizer that writes recognized text
-to stdout.
+to stdout. See `docs/media-ocr-asr.md` for copyable image OCR and video/audio
+ASR examples.

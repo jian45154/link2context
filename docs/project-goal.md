@@ -1,4 +1,4 @@
-# 灵渠 / Link2Context Open Source Goal
+# 灵渠 / Link2Context Open Source Project Goal
 
 ## Goal
 
