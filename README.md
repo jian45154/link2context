@@ -29,6 +29,7 @@ saved links -> normalized context -> local store -> graph/query/export -> agent 
 ## Quick Links
 
 - [Quickstart](docs/quickstart.md): 最小离线闭环，从 fixture 到 store query 和 handoff export。
+- [Cookie Usage](docs/cookies.md): 本地 Cookie 文件设置、安全边界和失败重试示例。
 - [Documentation Index](docs/index.md): 架构、图谱、导入导出契约、媒体 OCR/ASR、发布检查入口。
 - [Architecture](docs/architecture.md): 模块边界、数据流和稳定契约。
 - [Roadmap](docs/roadmap.md): 近期和后续开源方向。
@@ -112,10 +113,11 @@ python -m link2context "https://www.xiaohongshu.com/explore/..." --out outputs/x
 如果公开请求只返回壳页面，可以提供你自己的登录 Cookie：
 
 ```powershell
+python scripts\init_cookie_file.py --platform xiaohongshu
 python -m link2context "https://www.xiaohongshu.com/explore/..." --platform xiaohongshu --cookie-file .secrets\xiaohongshu.cookie --out outputs/xhs-sample
 ```
 
-Cookie 只作为请求头使用，不会写入 `context.json`、`context.md` 或 `manifest.json`。不要把 Cookie 文件提交到版本库。
+Cookie 只作为请求头使用，不会写入 `context.json`、`context.md` 或 `manifest.json`。不要把 Cookie 文件提交到版本库。完整流程见 [Cookie Usage](docs/cookies.md)。
 
 显式指定平台：
 
