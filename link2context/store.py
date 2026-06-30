@@ -7,9 +7,11 @@ import json
 import mimetypes
 import os
 import re
+import shlex
 import shutil
 import sqlite3
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Iterable
@@ -18,6 +20,13 @@ from urllib.request import Request, urlopen
 
 from . import __version__
 from .graph import extract_graph
+
+
+def configure_stdio() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
 
 PROFILE_TERM_STOP_NAMES = {
     "AI",
@@ -63,7 +72,9 @@ MEDIA_TEXT_LOW_CONFIDENCE_THRESHOLD = 0.70
 MEDIA_TEXT_PRESETS = {
     "tesseract": {
         "kind": "image",
-        "template": 'tesseract "{input_source}" stdout -l {language}',
+        "template": '"{tool_path}" "{input_source}" stdout -l {language} --tessdata-dir "{tessdata_dir}"',
+        "tool_path": "tesseract",
+        "tessdata_dir": "models/tessdata",
         "model": "tesseract",
         "language": "chi_sim+eng",
         "confidence": None,
@@ -127,6 +138,7 @@ CREATE TABLE IF NOT EXISTS media (
   text_model TEXT,
   text_language TEXT,
   text_confidence REAL,
+  text_indexed_at TEXT,
   FOREIGN KEY(document_id) REFERENCES documents(id) ON DELETE CASCADE
 );
 
@@ -649,6 +661,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    configure_stdio()
     args = parse_args()
     db_path = Path(args.db)
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1127,6 +1140,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     ensure_column(conn, "media", "text_model", "TEXT")
     ensure_column(conn, "media", "text_language", "TEXT")
     ensure_column(conn, "media", "text_confidence", "REAL")
+    ensure_column(conn, "media", "text_indexed_at", "TEXT")
     ensure_column(conn, "media", "local_path", "TEXT")
     ensure_column(conn, "media", "cache_status", "TEXT")
     ensure_column(conn, "media", "cache_error", "TEXT")
@@ -1340,6 +1354,7 @@ def import_context(conn: sqlite3.Connection, context: dict) -> int:
             image.get("ocr", {}).get("text"),
         )
     for video in media.get("videos", []) or []:
+        text = video_analysis_text(video)
         insert_media(
             conn,
             document_id,
@@ -1348,7 +1363,10 @@ def import_context(conn: sqlite3.Connection, context: dict) -> int:
             video.get("embed_url"),
             media_local_path(video),
             video.get("status"),
-            None,
+            text,
+            video_analysis_model(video) if text else None,
+            video_analysis_language(video) if text else None,
+            1.0 if text else None,
         )
 
     for citation in agent_package.get("citations", []) or []:
@@ -1901,18 +1919,65 @@ def insert_media(
     local_path: str | None,
     status: str | None,
     text: str | None,
+    text_model: str | None = None,
+    text_language: str | None = None,
+    text_confidence: float | None = None,
 ) -> None:
     conn.execute(
         """
-        INSERT INTO media (document_id, kind, media_index, url, local_path, status, text)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO media (
+          document_id, kind, media_index, url, local_path, status, text,
+          text_model, text_language, text_confidence
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (document_id, kind, media_index or 0, url, local_path, status, text),
+        (
+            document_id,
+            kind,
+            media_index or 0,
+            url,
+            local_path,
+            status,
+            text,
+            text_model,
+            text_language,
+            text_confidence,
+        ),
     )
 
 
 def media_local_path(item: dict) -> str | None:
     return item.get("local_path") or item.get("path") or item.get("file_path")
+
+
+def video_analysis_text(video: dict) -> str | None:
+    analysis = video.get("analysis") if isinstance(video.get("analysis"), dict) else {}
+    transcript_text = analysis.get("transcript_text")
+    if isinstance(transcript_text, str) and transcript_text.strip():
+        return transcript_text.strip()
+    transcript = analysis.get("transcript")
+    if not isinstance(transcript, list):
+        return None
+    parts = [
+        str(cue.get("text") or "").strip()
+        for cue in transcript
+        if isinstance(cue, dict) and str(cue.get("text") or "").strip()
+    ]
+    text = " ".join(parts).strip()
+    return text or None
+
+
+def video_analysis_model(video: dict) -> str:
+    analysis = video.get("analysis") if isinstance(video.get("analysis"), dict) else {}
+    if analysis.get("subtitle_track"):
+        return "xiaohongshu-subtitle"
+    return "video-analysis"
+
+
+def video_analysis_language(video: dict) -> str | None:
+    analysis = video.get("analysis") if isinstance(video.get("analysis"), dict) else {}
+    language = analysis.get("language")
+    return str(language) if language else None
 
 
 def search(conn: sqlite3.Connection, query: str, limit: int = 10) -> list[sqlite3.Row]:
@@ -4796,7 +4861,7 @@ def auto_queue_next_commands(commands: list[str], next_plan: dict | None = None)
         pieces = [
             "python -m link2context.store --db data/link2context.db run-media-text",
             f"--kind {kind}",
-            f"--out {output}",
+            f"--out {quote_cli_value_if_needed(output)}",
             *auto_queue_next_runner_args(effective_plan),
             "--apply --reindex",
         ]
@@ -4852,7 +4917,7 @@ def auto_queue_next_runner_args(plan: dict) -> list[str]:
 
 
 def command_option_value(command: str, option: str) -> str | None:
-    parts = command.split()
+    parts = command_parts(command)
     for index, part in enumerate(parts):
         if part == option and index + 1 < len(parts):
             return parts[index + 1]
@@ -4862,13 +4927,27 @@ def command_option_value(command: str, option: str) -> str | None:
 
 
 def command_has_flag(command: str, flag: str) -> bool:
-    return flag in command.split()
+    return flag in command_parts(command)
+
+
+def command_parts(command: str) -> list[str]:
+    try:
+        return shlex.split(command)
+    except ValueError:
+        return command.split()
 
 
 def quote_cli_value(value: object) -> str:
     text = str(value)
     escaped = text.replace('"', '\\"')
     return f'"{escaped}"'
+
+
+def quote_cli_value_if_needed(value: object) -> str:
+    text = str(value)
+    if re.search(r"\s", text):
+        return quote_cli_value(text)
+    return text
 
 
 def run_shell_command(command: str, timeout: int) -> dict:
@@ -6232,6 +6311,7 @@ def media_pipeline_status(conn: sqlite3.Connection) -> dict:
         SELECT
           COUNT(*) AS total,
           SUM(CASE WHEN status = 'not_processed' THEN 1 ELSE 0 END) AS not_processed,
+          SUM(CASE WHEN status = 'no_text' THEN 1 ELSE 0 END) AS no_text,
           SUM(CASE WHEN text IS NOT NULL AND trim(text) != '' THEN 1 ELSE 0 END) AS with_text,
           SUM(CASE WHEN local_path IS NOT NULL AND trim(local_path) != '' THEN 1 ELSE 0 END) AS with_local_path,
           SUM(CASE WHEN cache_status IS NOT NULL AND trim(cache_status) != '' THEN 1 ELSE 0 END) AS cache_touched,
@@ -6248,6 +6328,16 @@ def media_pipeline_status(conn: sqlite3.Connection) -> dict:
     indexed_relations = conn.execute(
         "SELECT COUNT(*) AS count FROM relationships WHERE evidence = 'media.text'"
     ).fetchone()["count"]
+    indexed_media_text = conn.execute(
+        """
+        SELECT COUNT(*) AS count
+        FROM media
+        WHERE text IS NOT NULL
+          AND trim(text) != ''
+          AND text_indexed_at IS NOT NULL
+          AND trim(text_indexed_at) != ''
+        """
+    ).fetchone()["count"]
     local_ready = conn.execute(
         """
         SELECT COUNT(*) AS count
@@ -6260,6 +6350,7 @@ def media_pipeline_status(conn: sqlite3.Connection) -> dict:
     counts = {
         "total": int(row["total"] or 0),
         "not_processed": int(row["not_processed"] or 0),
+        "no_text": int(row["no_text"] or 0),
         "with_text": int(row["with_text"] or 0),
         "with_local_path": int(row["with_local_path"] or 0),
         "cache_touched": int(row["cache_touched"] or 0),
@@ -6267,9 +6358,27 @@ def media_pipeline_status(conn: sqlite3.Connection) -> dict:
         "cache_attention": int(row["cache_attention"] or 0),
         "low_confidence": int(row["low_confidence"] or 0),
         "local_ready": int(local_ready or 0),
+        "indexed_media_text": int(indexed_media_text or 0),
         "indexed_documents": int(indexed_documents or 0),
         "indexed_relations": int(indexed_relations or 0),
     }
+    media_text_graph_ok = (
+        counts["with_text"] == 0
+        or counts["indexed_documents"] > 0
+        or counts["indexed_media_text"] >= counts["with_text"]
+    )
+    media_text_graph_status = "missing"
+    if counts["indexed_documents"] > 0:
+        media_text_graph_status = "indexed"
+    elif counts["with_text"] and counts["indexed_media_text"] >= counts["with_text"]:
+        media_text_graph_status = "indexed_without_graph_entities"
+    media_text_ok = counts["not_processed"] == 0
+    if media_text_ok:
+        media_text_status = "complete"
+    elif counts["with_text"]:
+        media_text_status = "partial"
+    else:
+        media_text_status = "missing"
     checks = [
         {
             "name": "auto_queue",
@@ -6287,9 +6396,9 @@ def media_pipeline_status(conn: sqlite3.Connection) -> dict:
         },
         {
             "name": "media_text",
-            "ok": counts["with_text"] > 0 or counts["not_processed"] == 0,
+            "ok": media_text_ok,
             "count": counts["with_text"],
-            "status": "present" if counts["with_text"] else "missing",
+            "status": media_text_status,
             "command": "python -m link2context.store --db data/link2context.db run-auto-queue-next outputs/agent-handoff",
         },
         {
@@ -6301,16 +6410,16 @@ def media_pipeline_status(conn: sqlite3.Connection) -> dict:
         },
         {
             "name": "media_text_graph",
-            "ok": counts["with_text"] == 0 or counts["indexed_documents"] > 0,
-            "count": counts["indexed_documents"],
-            "status": "indexed" if counts["indexed_documents"] else "missing",
+            "ok": media_text_graph_ok,
+            "count": counts["indexed_documents"] or counts["indexed_media_text"],
+            "status": media_text_graph_status,
             "command": "python -m link2context.store --db data/link2context.db verify-media-text <results.jsonl> --require-reindex",
         },
     ]
     blockers = [
         check["name"]
         for check in checks
-        if not check["ok"] and check["name"] in {"cache_attention", "low_confidence", "media_text_graph"}
+        if not check["ok"] and check["name"] in {"cache_attention", "media_text", "low_confidence", "media_text_graph"}
     ]
     return {
         "status": "needs_attention" if blockers else "ready",
@@ -6382,20 +6491,25 @@ def media_text_presets_report(
     discovered_models = discover_media_text_models(model_dirs)
     presets = []
     for name, config in MEDIA_TEXT_PRESETS.items():
-        configured_tool_path = tool_path if tool_path and config.get("tool_path") else config.get("tool_path")
-        if configured_tool_path:
-            configured_path = Path(configured_tool_path)
-            executable = configured_tool_path
-            resolved = str(configured_path) if configured_path.exists() else shutil.which(configured_path.name)
-        else:
-            executable = name
-            resolved = shutil.which(name)
+        configured_tool_path = tool_path if tool_path else config.get("tool_path")
+        executable = configured_tool_path or name
+        resolved = resolve_media_text_tool_path(executable)
         requires_model = name in {"sona", "vibe"}
+        tessdata_dir = resolve_media_text_tessdata_dir(config.get("tessdata_dir")) if name == "tesseract" else None
+        language_status = (
+            media_text_language_status(config.get("language", ""), tessdata_dir)
+            if name == "tesseract"
+            else {"available": None, "missing": [], "available_languages": [], "note": ""}
+        )
         resolved_preset_model = preset_model
         if requires_model and not resolved_preset_model and discovered_models:
             resolved_preset_model = discovered_models[0]["path"]
         model_status = media_text_model_status(resolved_preset_model if requires_model else None)
-        ready = bool(resolved) and (not requires_model or model_status["available"])
+        ready = (
+            bool(resolved)
+            and (not requires_model or model_status["available"])
+            and language_status["available"] is not False
+        )
         presets.append(
             {
                 "name": name,
@@ -6409,6 +6523,11 @@ def media_text_presets_report(
                 "model_resolved_path": model_status["resolved_path"] if requires_model else None,
                 "model_note": model_status["note"] if requires_model else "",
                 "tool_path": configured_tool_path,
+                "tessdata_dir": tessdata_dir,
+                "language_available": language_status["available"],
+                "language_missing": language_status["missing"],
+                "available_languages": language_status["available_languages"],
+                "language_note": language_status["note"],
                 "executable": executable,
                 "available": bool(resolved),
                 "ready": ready,
@@ -6419,7 +6538,7 @@ def media_text_presets_report(
                     name,
                     config,
                     preset_model=resolved_preset_model,
-                    tool_path=tool_path if config.get("tool_path") else None,
+                    tool_path=tool_path if configured_tool_path and tool_path else None,
                 ),
             }
         )
@@ -6485,6 +6604,69 @@ def media_text_model_status(preset_model: str | None) -> dict:
         "available": candidate.exists(),
         "resolved_path": str(candidate) if candidate.exists() else None,
         "note": "" if candidate.exists() else "preset_model path does not exist.",
+    }
+
+
+def resolve_media_text_tool_path(executable: str | None) -> str | None:
+    if not executable:
+        return None
+    candidate = Path(executable)
+    if candidate.exists():
+        return str(candidate)
+    resolved = shutil.which(str(executable))
+    if resolved:
+        return resolved
+    if candidate.name.lower() != "tesseract":
+        return None
+    for env_name in ("ProgramFiles", "ProgramFiles(x86)"):
+        root = os.environ.get(env_name)
+        if not root:
+            continue
+        default_path = Path(root) / "Tesseract-OCR" / "tesseract.exe"
+        if default_path.exists():
+            return str(default_path)
+    return None
+
+
+def resolve_media_text_tessdata_dir(configured_dir: str | None = None) -> str | None:
+    candidates: list[Path] = []
+    if configured_dir:
+        candidates.append(Path(configured_dir))
+    candidates.extend([Path("models") / "tessdata", Path("outputs") / "models" / "tessdata"])
+    for env_name in ("ProgramFiles", "ProgramFiles(x86)"):
+        root = os.environ.get(env_name)
+        if root:
+            candidates.append(Path(root) / "Tesseract-OCR" / "tessdata")
+    seen: set[str] = set()
+    for candidate in candidates:
+        key = str(candidate)
+        if key in seen:
+            continue
+        seen.add(key)
+        if candidate.exists() and candidate.is_dir():
+            return str(candidate)
+    return configured_dir
+
+
+def media_text_language_status(language: str, tessdata_dir: str | None) -> dict:
+    if not language:
+        return {"available": True, "missing": [], "available_languages": [], "note": ""}
+    if not tessdata_dir:
+        return {
+            "available": False,
+            "missing": language.split("+"),
+            "available_languages": [],
+            "note": "tessdata directory was not found.",
+        }
+    directory = Path(tessdata_dir)
+    available_languages = sorted(path.stem for path in directory.glob("*.traineddata"))
+    required = [part for part in language.split("+") if part]
+    missing = [part for part in required if part not in available_languages]
+    return {
+        "available": not missing,
+        "missing": missing,
+        "available_languages": available_languages,
+        "note": "" if not missing else f"missing language data: {', '.join(missing)}",
     }
 
 
@@ -7422,8 +7604,15 @@ def run_media_text(
     queue = media_queue(conn, kind, status, limit, low_confidence)
     results = []
     skipped = []
+    prepared_inputs = []
     for item in queue.get("items", []):
-        command = media_text_command(runner["command_template"], item, runner.get("format_values"))
+        prepared_item, prepared, prepare_error = prepare_media_text_input(item, runner, out_path, timeout)
+        if prepare_error:
+            skipped.append(prepare_error)
+            continue
+        if prepared:
+            prepared_inputs.append(prepared)
+        command = media_text_command(runner["command_template"], prepared_item, runner.get("format_values"))
         try:
             completed = subprocess.run(
                 command,
@@ -7461,13 +7650,14 @@ def run_media_text(
             continue
         text = completed.stdout.strip()
         if not text:
-            skipped.append(
+            results.append(
                 {
-                    "document_id": item.get("output_hint", {}).get("document_id"),
-                    "media_index": item.get("index"),
-                    "kind": item.get("kind"),
-                    "reason": "empty_output",
-                    "command": command,
+                    **item.get("result_template", {}),
+                    "text": "",
+                    "status": "no_text",
+                    "model": runner["model"],
+                    "language": runner["language"],
+                    "confidence": runner["confidence"],
                 }
             )
             continue
@@ -7500,6 +7690,7 @@ def run_media_text(
         },
         "results": results,
         "skipped": skipped,
+        "prepared_inputs": prepared_inputs,
         "apply": apply_report,
         "summary": {
             "queued": len(queue.get("items", [])),
@@ -7509,6 +7700,87 @@ def run_media_text(
         },
         "note": "run-media-text expects the external command to write recognized text to stdout.",
     }
+
+
+def prepare_media_text_input(
+    item: dict,
+    runner: dict,
+    out_path: Path,
+    timeout: int,
+) -> tuple[dict, dict | None, dict | None]:
+    source = str(item.get("input_source") or item.get("input_path") or "")
+    if runner.get("preset") != "tesseract" or Path(source).suffix.lower() != ".gif":
+        return item, None, None
+    ffmpeg = resolve_ffmpeg_path()
+    if not ffmpeg:
+        return item, None, {
+            "document_id": item.get("output_hint", {}).get("document_id"),
+            "media_index": item.get("index"),
+            "kind": item.get("kind"),
+            "reason": "gif_preprocess_unavailable",
+            "error": "ffmpeg was not found for animated GIF OCR preprocessing.",
+        }
+    prepared_dir = out_path.parent / "prepared-media"
+    prepared_dir.mkdir(parents=True, exist_ok=True)
+    document_id = item.get("output_hint", {}).get("document_id") or "unknown"
+    media_index = item.get("index") or "unknown"
+    prepared_path = prepared_dir / f"doc{document_id}-{item.get('kind')}{media_index}.png"
+    try:
+        completed = subprocess.run(
+            [ffmpeg, "-y", "-i", source, "-frames:v", "1", str(prepared_path)],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=max(1, timeout),
+        )
+    except subprocess.TimeoutExpired:
+        return item, None, {
+            "document_id": document_id,
+            "media_index": item.get("index"),
+            "kind": item.get("kind"),
+            "reason": "gif_preprocess_timeout",
+            "tool": ffmpeg,
+        }
+    if completed.returncode != 0 or not prepared_path.exists():
+        return item, None, {
+            "document_id": document_id,
+            "media_index": item.get("index"),
+            "kind": item.get("kind"),
+            "reason": "gif_preprocess_failed",
+            "returncode": completed.returncode,
+            "stderr": completed.stderr.strip(),
+            "tool": ffmpeg,
+        }
+    prepared_item = {
+        **item,
+        "input_path": str(prepared_path),
+        "input_source": str(prepared_path),
+    }
+    return prepared_item, {
+        "document_id": document_id,
+        "media_index": item.get("index"),
+        "kind": item.get("kind"),
+        "source": source,
+        "prepared_path": str(prepared_path),
+        "tool": ffmpeg,
+    }, None
+
+
+def resolve_ffmpeg_path() -> str | None:
+    resolved = shutil.which("ffmpeg")
+    if resolved:
+        return resolved
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if not local_app_data:
+        return None
+    package_root = Path(local_app_data) / "Microsoft" / "WinGet" / "Packages"
+    if not package_root.exists():
+        return None
+    for path in sorted(package_root.glob("**/ffmpeg.exe")):
+        if path.is_file():
+            return str(path)
+    return None
 
 
 def resolve_media_text_runner(
@@ -7539,7 +7811,11 @@ def resolve_media_text_runner(
             "format_values": {
                 "language": resolved_language,
                 "preset_model": preset_model or "",
-                "tool_path": tool_path or config.get("tool_path", ""),
+                "tool_path": resolve_media_text_tool_path(tool_path or config.get("tool_path", ""))
+                or tool_path
+                or config.get("tool_path", ""),
+                "tessdata_dir": resolve_media_text_tessdata_dir(config.get("tessdata_dir"))
+                or config.get("tessdata_dir", ""),
             },
         }
     if not command_template or not command_template.strip():
@@ -7667,15 +7943,17 @@ def apply_media_text(
         if row is None:
             skipped.append({"index": index, "reason": "media_not_found", "input": result})
             continue
+        target_status = normalized.get("status") or status
         conn.execute(
             """
             UPDATE media
-            SET text = ?, status = ?, text_model = ?, text_language = ?, text_confidence = ?
+            SET text = ?, status = ?, text_model = ?, text_language = ?, text_confidence = ?,
+                text_indexed_at = NULL
             WHERE id = ?
             """,
             (
                 normalized["text"],
-                status,
+                target_status,
                 normalized.get("model"),
                 normalized.get("language"),
                 normalized.get("confidence"),
@@ -7689,7 +7967,7 @@ def apply_media_text(
                 "document_id": normalized["document_id"],
                 "media_index": normalized["media_index"],
                 "kind": normalized.get("kind"),
-                "status": status,
+                "status": target_status,
                 "text_length": len(normalized["text"]),
                 "model": normalized.get("model"),
                 "language": normalized.get("language"),
@@ -7758,12 +8036,16 @@ def normalize_media_text_result(result: dict) -> dict:
     document = result.get("document") if isinstance(result.get("document"), dict) else {}
     document_id = result.get("document_id") or output_hint.get("document_id") or document.get("id")
     media_index = result.get("media_index") or output_hint.get("media_index") or result.get("index")
+    result_status = result.get("status")
     text = result.get("text") or result.get("output_text") or result.get("transcript")
     if document_id is None:
         return {"ok": False, "reason": "missing_document_id"}
     if media_index is None:
         return {"ok": False, "reason": "missing_media_index"}
-    if not isinstance(text, str) or not text.strip():
+    if not isinstance(text, str):
+        text = ""
+    allow_empty = result_status == "no_text"
+    if not text.strip() and not allow_empty:
         return {"ok": False, "reason": "missing_text"}
     confidence = normalize_optional_float(result.get("confidence", result.get("text_confidence")))
     return {
@@ -7772,6 +8054,7 @@ def normalize_media_text_result(result: dict) -> dict:
         "media_index": int(media_index),
         "kind": result.get("kind"),
         "text": text.strip(),
+        "status": result_status if result_status == "no_text" else None,
         "model": result.get("model") or result.get("text_model"),
         "language": result.get("language") or result.get("lang") or result.get("text_language"),
         "confidence": confidence,
@@ -7831,7 +8114,9 @@ def verify_media_text(
             continue
         row = conn.execute(
             """
-            SELECT id, document_id, media_index, kind, text, status, text_model, text_language, text_confidence
+            SELECT
+              id, document_id, media_index, kind, text, status,
+              text_model, text_language, text_confidence, text_indexed_at
             FROM media
             WHERE document_id = ? AND media_index = ?
               AND (? IS NULL OR kind = ?)
@@ -7849,9 +8134,10 @@ def verify_media_text(
             errors.append(f"input #{index}: media row not found")
             skipped.append({"index": index, "reason": "media_not_found", "input": result})
             continue
+        expected_status = normalized.get("status") or status
         item_errors = []
-        if row["status"] != status:
-            item_errors.append(f"status expected {status}, got {row['status']}")
+        if row["status"] != expected_status:
+            item_errors.append(f"status expected {expected_status}, got {row['status']}")
         if (row["text"] or "").strip() != normalized["text"]:
             item_errors.append("text does not match result")
         if normalized.get("model") and row["text_model"] != normalized.get("model"):
@@ -7880,6 +8166,7 @@ def verify_media_text(
                     "model": row["text_model"],
                     "language": row["text_language"],
                     "confidence": row["text_confidence"],
+                    "text_indexed_at": row["text_indexed_at"],
                 }
             )
     reindex = {"required": require_reindex, "ok": None, "documents": []}
@@ -7894,13 +8181,34 @@ def verify_media_text(
                 "SELECT COUNT(*) AS count FROM relationships WHERE document_id = ? AND evidence = 'media.text'",
                 (document_id,),
             ).fetchone()["count"]
-            document_ok = entity_count > 0 or relation_count > 0
+            media_text_counts = conn.execute(
+                """
+                SELECT
+                  COUNT(*) AS media_text,
+                  SUM(
+                    CASE
+                      WHEN text_indexed_at IS NOT NULL AND trim(text_indexed_at) != '' THEN 1
+                      ELSE 0
+                    END
+                  ) AS indexed_media_text
+                FROM media
+                WHERE document_id = ?
+                  AND text IS NOT NULL
+                  AND trim(text) != ''
+                """,
+                (document_id,),
+            ).fetchone()
+            media_text_count = int(media_text_counts["media_text"] or 0)
+            indexed_media_text = int(media_text_counts["indexed_media_text"] or 0)
+            document_ok = media_text_count > 0 and indexed_media_text >= media_text_count
             if not document_ok:
-                errors.append(f"document_id={document_id}: missing media.text graph signals")
+                errors.append(f"document_id={document_id}: missing media.text reindex marker")
             reindex_documents.append(
                 {
                     "document_id": document_id,
                     "ok": document_ok,
+                    "indexed_media_text": indexed_media_text,
+                    "media_text": media_text_count,
                     "entities": entity_count,
                     "relations": relation_count,
                 }
@@ -8054,7 +8362,7 @@ def reindex_media_text(
     rows = conn.execute(
         f"""
         SELECT
-          m.document_id, m.kind, m.media_index, m.text,
+          m.id AS media_id, m.document_id, m.kind, m.media_index, m.text,
           d.url AS document_url, d.title, d.platform, d.account_name
         FROM media m
         JOIN documents d ON d.id = m.document_id
@@ -8142,6 +8450,10 @@ def reindex_media_text(
             )
         total_entities += len(entities)
         total_relations += len(relations)
+        conn.execute(
+            "UPDATE media SET text_indexed_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (row["media_id"],),
+        )
         indexed.append(
             {
                 "document_id": row["document_id"],
