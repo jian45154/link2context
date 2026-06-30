@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import re
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -13,6 +14,12 @@ from .agent_reach import platform_backend_status
 from .fetch import fetch_url
 from .xiaohongshu import build_xiaohongshu_context
 from .wechat import build_wechat_context
+
+
+def configure_stdio() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
 
 
 def parse_args() -> argparse.Namespace:
@@ -48,6 +55,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    configure_stdio()
     args = parse_args()
     if args.verify_batch:
         report = verify_batch(Path(args.verify_batch))
@@ -100,7 +108,8 @@ def main() -> None:
     else:
         html = fetch_url(source_url, cookie=read_cookie(args))
 
-    context = build_context(source_url, html, args.platform, args.backend)
+    subtitle_fetcher = None if args.html else fetch_url
+    context = build_context(source_url, html, args.platform, args.backend, subtitle_fetcher=subtitle_fetcher)
     write_context(context, Path(args.out))
 
 
@@ -142,7 +151,7 @@ def run_batch_urls(
         item_dir = out_root / f"{index:03d}-{slug_from_url(url)}"
         try:
             html = fetch_url(url, cookie=cookie)
-            context = build_context(url, html, platform, backend)
+            context = build_context(url, html, platform, backend, subtitle_fetcher=fetch_url)
             write_context(context, item_dir)
             item = {
                 "index": index,
@@ -527,13 +536,19 @@ def write_context(context: dict, out_dir: Path) -> None:
     print(f"Wrote {out_dir / 'context.md'}")
 
 
-def build_context(url: str, html: str, platform: str = "auto", backend: str = "native") -> dict:
+def build_context(
+    url: str,
+    html: str,
+    platform: str = "auto",
+    backend: str = "native",
+    subtitle_fetcher=None,
+) -> dict:
     resolved = detect_platform(url) if platform == "auto" else platform
     backend_warning = backend_status_warning(resolved, backend)
     if resolved == "wechat":
         context = build_wechat_context(url, html)
     elif resolved == "xiaohongshu":
-        context = build_xiaohongshu_context(url, html)
+        context = build_xiaohongshu_context(url, html, subtitle_fetcher=subtitle_fetcher)
     else:
         raise ValueError(f"Unsupported platform: {resolved}")
 
@@ -615,6 +630,9 @@ def render_markdown(context: dict) -> str:
                 f"- video_{video['index']}: {video.get('embed_url') or 'embedded'} "
                 f"(parse_status={video['analysis']['status']})"
             )
+            transcript_text = video.get("analysis", {}).get("transcript_text")
+            if transcript_text:
+                parts.extend(["", f"### video_{video['index']} Transcript", "", transcript_text, ""])
         parts.append("")
 
     parts.extend(

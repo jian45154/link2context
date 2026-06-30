@@ -161,6 +161,7 @@ from link2context.store import (
     render_doctor_markdown,
 )
 from link2context.wechat import build_wechat_context
+from link2context.xiaohongshu import build_xiaohongshu_context
 
 
 def test_store_cli_version_uses_package_version(monkeypatch, capsys) -> None:
@@ -233,6 +234,46 @@ def test_imported_video_media_is_ready_for_cache_and_asr_queue() -> None:
     assert videos["items"][0]["status"] == "not_processed"
     assert queue["items"][0]["task"] == "asr"
     assert cache_candidates[0]["status"] == "not_processed"
+
+
+def test_import_context_uses_xiaohongshu_subtitle_transcript_as_video_text() -> None:
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    init_db(conn)
+    html = r"""
+    <html>
+      <head>
+        <meta property="og:title" content="四个方法手把手教你怎么在澳洲找工作 - 小红书">
+        <meta name="description" content="澳洲找工作四个方法，重点讲 networking 和内推。">
+        <meta property="og:video" content="https://example.com/xhs-video.mp4">
+      </head>
+      <script>
+        window.__INITIAL_STATE__ = {"note":{"mediaV2":"{\"subtitles\":{\"source\":[{\"url\":\"https:\u002F\u002Fsns-subtitle-s10.xhscdn.com\u002Fsubtitle\u002Fsource.srt?sign=def&t=1\",\"language\":\"zh-CN\",\"format\":0,\"type\":0}]}}" }};
+      </script>
+    </html>
+    """
+    context = build_xiaohongshu_context(
+        "https://www.xiaohongshu.com/explore/abc123",
+        html,
+        subtitle_fetcher=lambda _url: (
+            "1\n"
+            "00:00:00,000 --> 00:00:02,000\n"
+            "第一句字幕\n\n"
+            "2\n"
+            "00:00:02,000 --> 00:00:04,000\n"
+            "第二句字幕\n"
+        ),
+    )
+
+    import_context(conn, context)
+
+    videos = media_inventory(conn, kind="video", status="processed", limit=10)
+    assert len(videos["items"]) == 1
+    assert videos["items"][0]["text"] == "第一句字幕 第二句字幕"
+    assert videos["items"][0]["text_model"] == "xiaohongshu-subtitle"
+    assert videos["items"][0]["text_language"] == "zh-CN"
+    assert videos["items"][0]["text_confidence"] == 1.0
 
 
 def test_vibe_preset_is_available_for_video_asr_command_generation() -> None:
@@ -894,8 +935,9 @@ def test_media_text_presets_report_validates_model_and_tool_overrides(tmp_path: 
     assert sona["resolved_path"] == str(tool_path)
     assert f'--preset-model "{model_path}"' in sona["example"]
     assert f'--tool-path "{tool_path}"' in sona["example"]
-    assert tesseract["executable"] == "tesseract"
-    assert f'--tool-path "{tool_path}"' not in tesseract["example"]
+    assert tesseract["executable"] == str(tool_path)
+    assert tesseract["resolved_path"] == str(tool_path)
+    assert f'--tool-path "{tool_path}"' in tesseract["example"]
     assert "sona" in report["ready"]
 
 
@@ -1181,6 +1223,70 @@ def test_run_media_text_records_command_failures(tmp_path: Path) -> None:
     assert out_path.read_text(encoding="utf-8") == ""
 
 
+def test_run_media_text_marks_empty_output_as_no_text(tmp_path: Path) -> None:
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    init_db(conn)
+    html = Path("examples/wechat_sample.html").read_text(encoding="utf-8")
+    context = build_wechat_context("https://mp.weixin.qq.com/s/example", html)
+    import_context(conn, context)
+    conn.execute("UPDATE media SET status = 'processed' WHERE kind != 'image'")
+    out_path = tmp_path / "media-results.jsonl"
+    command_template = f'"{sys.executable}" -c "pass"'
+
+    report = run_media_text(
+        conn,
+        kind="image",
+        status="not_processed",
+        limit=10,
+        out_path=out_path,
+        command_template=command_template,
+        apply=True,
+    )
+
+    assert report["summary"] == {"queued": 1, "written": 1, "skipped": 0, "applied": 1}
+    result = json.loads(out_path.read_text(encoding="utf-8"))
+    assert result["status"] == "no_text"
+    assert result["text"] == ""
+    inventory = media_inventory(conn, kind="image", status="no_text", limit=10)
+    assert inventory["items"][0]["status"] == "no_text"
+    assert media_pipeline_status(conn)["status"] == "ready"
+
+
+def test_prepare_media_text_input_extracts_gif_first_frame(tmp_path: Path, monkeypatch) -> None:
+    gif_path = tmp_path / "animated.gif"
+    gif_path.write_bytes(b"GIF89a")
+    item = {
+        "kind": "image",
+        "index": 2,
+        "input_path": str(gif_path),
+        "input_source": str(gif_path),
+        "output_hint": {"document_id": 7, "media_index": 2},
+    }
+
+    monkeypatch.setattr(store_cli, "resolve_ffmpeg_path", lambda: "ffmpeg")
+
+    def fake_run(args, **kwargs):  # noqa: ANN001, ANN202 - mirrors subprocess.run in a narrow unit test.
+        Path(args[-1]).write_bytes(b"png")
+        return type("Completed", (), {"returncode": 0, "stderr": ""})()
+
+    monkeypatch.setattr(store_cli.subprocess, "run", fake_run)
+
+    prepared_item, prepared, error = store_cli.prepare_media_text_input(
+        item,
+        {"preset": "tesseract"},
+        tmp_path / "ocr.jsonl",
+        timeout=5,
+    )
+
+    assert error is None
+    assert prepared is not None
+    assert prepared["source"] == str(gif_path)
+    assert prepared_item["input_source"].endswith("doc7-image2.png")
+    assert Path(prepared_item["input_source"]).read_bytes() == b"png"
+
+
 def test_apply_media_text_updates_media_text_and_status(tmp_path: Path) -> None:
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
@@ -1362,10 +1468,11 @@ def test_verify_media_text_requires_reindex_when_requested(tmp_path: Path) -> No
     verified = verify_media_text(conn, results_path, status="processed", require_reindex=True)
 
     assert missing["ok"] is False
-    assert "document_id=1: missing media.text graph signals" in missing["errors"]
+    assert "document_id=1: missing media.text reindex marker" in missing["errors"]
     assert verified["ok"] is True
     assert verified["reindex"]["ok"] is True
     assert verified["reindex"]["documents"][0]["document_id"] == 1
+    assert verified["reindex"]["documents"][0]["indexed_media_text"] == 1
 
 
 def test_verify_media_text_reports_mismatched_rows(tmp_path: Path) -> None:
@@ -1410,7 +1517,7 @@ def test_render_verify_media_text_markdown_includes_errors_and_reindex() -> None
         "status": "processed",
         "require_reindex": True,
         "summary": {"input": 1, "verified": 0, "skipped": 0, "errors": 1},
-        "errors": ["document_id=1: missing media.text graph signals"],
+        "errors": ["document_id=1: missing media.text reindex marker"],
         "warnings": [],
         "verified": [],
         "reindex": {
@@ -1425,7 +1532,7 @@ def test_render_verify_media_text_markdown_includes_errors_and_reindex() -> None
 
     assert "# Link2Context Verify Media Text" in markdown
     assert "- OK: false" in markdown
-    assert "missing media.text graph signals" in markdown
+    assert "missing media.text reindex marker" in markdown
     assert "- fail document=1 entities=0 relations=0" in markdown
 
 
@@ -2499,6 +2606,7 @@ def test_media_pipeline_status_summarizes_processing_chain() -> None:
     assert report["counts"]["with_text"] == 1
     assert report["counts"]["with_local_path"] == 1
     assert report["counts"]["low_confidence"] == 1
+    assert report["counts"]["indexed_media_text"] == 1
     assert report["counts"]["indexed_documents"] == 1
     assert "low_confidence" in report["blockers"]
     assert any("media-text-presets" in command for command in report["recommended_commands"])
@@ -2509,6 +2617,168 @@ def test_media_pipeline_status_summarizes_processing_chain() -> None:
     assert "## Recommended Commands" in markdown
     assert "media-text-presets" in markdown
     assert "prepare-media-model" in markdown
+
+
+def test_media_pipeline_accepts_reindexed_media_text_without_graph_entities() -> None:
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    init_db(conn)
+    context = {
+        "source": {
+            "platform": "xiaohongshu",
+            "url": "https://www.xiaohongshu.com/explore/subtitle-only",
+            "fetched_at": "2026-06-30T00:00:00+00:00",
+        },
+        "article": {
+            "title": "字幕测试",
+            "account_name": "测试账号",
+            "author": "测试账号",
+            "published_at": None,
+            "summary": "字幕测试",
+        },
+        "content": {
+            "plain_text": "字幕测试",
+            "markdown": "# 字幕测试",
+        },
+        "media": {
+            "images": [],
+            "videos": [
+                {
+                    "index": 1,
+                    "embed_url": "https://example.com/video.mp4",
+                    "status": "processed",
+                    "analysis": {
+                        "transcript_text": "第一句字幕 第二句字幕",
+                        "language": "zh-CN",
+                        "subtitle_track": {"role": "source"},
+                    },
+                }
+            ],
+        },
+        "agent_package": {"citations": []},
+        "quality": {"status": "ok"},
+    }
+    import_context(conn, context)
+    reindex_media_text(conn, limit=10)
+
+    report = media_pipeline_status(conn)
+    graph_check = next(check for check in report["checks"] if check["name"] == "media_text_graph")
+
+    assert report["counts"]["with_text"] == 1
+    assert report["counts"]["indexed_media_text"] == 1
+    assert report["counts"]["indexed_documents"] == 0
+    assert graph_check["ok"] is True
+    assert graph_check["status"] == "indexed_without_graph_entities"
+    assert report["blockers"] == []
+    assert report["status"] == "ready"
+
+
+def test_media_pipeline_blocks_image_only_media_without_text() -> None:
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    init_db(conn)
+    context = {
+        "source": {
+            "platform": "xiaohongshu",
+            "url": "https://www.xiaohongshu.com/explore/image-only",
+            "fetched_at": "2026-06-30T00:00:00+00:00",
+        },
+        "article": {
+            "title": "图文测试",
+            "account_name": "测试账号",
+            "author": "测试账号",
+            "published_at": None,
+            "summary": "图文测试",
+        },
+        "content": {
+            "plain_text": "图文测试",
+            "markdown": "# 图文测试",
+        },
+        "media": {
+            "images": [
+                {
+                    "index": 1,
+                    "url": "https://example.com/image.jpg",
+                    "ocr": {"status": "not_processed", "text": ""},
+                }
+            ],
+            "videos": [],
+        },
+        "agent_package": {"citations": []},
+        "quality": {"status": "ok"},
+    }
+    import_context(conn, context)
+
+    report = media_pipeline_status(conn)
+    media_text_check = next(check for check in report["checks"] if check["name"] == "media_text")
+
+    assert report["counts"]["not_processed"] == 1
+    assert report["counts"]["with_text"] == 0
+    assert media_text_check["ok"] is False
+    assert "media_text" in report["blockers"]
+    assert report["status"] == "needs_attention"
+
+
+def test_media_pipeline_blocks_partial_media_text_when_some_media_remains_unprocessed() -> None:
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    init_db(conn)
+    context = {
+        "source": {
+            "platform": "xiaohongshu",
+            "url": "https://www.xiaohongshu.com/explore/mixed-media",
+            "fetched_at": "2026-06-30T00:00:00+00:00",
+        },
+        "article": {
+            "title": "混合媒体测试",
+            "account_name": "测试账号",
+            "author": "测试账号",
+            "published_at": None,
+            "summary": "混合媒体测试",
+        },
+        "content": {
+            "plain_text": "混合媒体测试",
+            "markdown": "# 混合媒体测试",
+        },
+        "media": {
+            "images": [
+                {
+                    "index": 1,
+                    "url": "https://example.com/image.jpg",
+                    "ocr": {"status": "not_processed", "text": ""},
+                }
+            ],
+            "videos": [
+                {
+                    "index": 1,
+                    "embed_url": "https://example.com/video.mp4",
+                    "status": "processed",
+                    "analysis": {
+                        "transcript_text": "视频已有转录",
+                        "language": "zh-CN",
+                        "subtitle_track": {"role": "source"},
+                    },
+                }
+            ],
+        },
+        "agent_package": {"citations": []},
+        "quality": {"status": "ok"},
+    }
+    import_context(conn, context)
+    reindex_media_text(conn, limit=10)
+
+    report = media_pipeline_status(conn)
+    media_text_check = next(check for check in report["checks"] if check["name"] == "media_text")
+
+    assert report["counts"]["not_processed"] == 1
+    assert report["counts"]["with_text"] == 1
+    assert media_text_check["ok"] is False
+    assert media_text_check["status"] == "partial"
+    assert "media_text" in report["blockers"]
+    assert report["status"] == "needs_attention"
 
 
 def test_render_media_queue_markdown_includes_task_and_priority() -> None:
@@ -4731,6 +5001,48 @@ def test_run_auto_queue_writes_next_handoff_files(tmp_path: Path) -> None:
         "entries": 1,
         "requires_review": True,
     }
+
+
+def test_auto_queue_next_handles_out_dir_with_spaces(tmp_path: Path) -> None:
+    media_path = tmp_path / "media.mp4"
+    media_path.write_bytes(b"video")
+    command = "python -m link2context.store --db data/link2context.db queue --kind video --status not_processed --format jsonl"
+    entry = {
+        "command": command,
+        "kind": "media",
+        "priority": 3,
+        "source": "actions",
+        "reason": f"local_path={media_path.name}; next_step=queue_media_text",
+        "automation": "auto_queue",
+        "requires_review": False,
+    }
+    (tmp_path / "auto-queue.commands.txt").write_text(command + "\n", encoding="utf-8")
+    (tmp_path / "auto-queue.jsonl").write_text(json.dumps(entry, ensure_ascii=False) + "\n", encoding="utf-8")
+    (tmp_path / "manifest.json").write_text(
+        json.dumps(
+            {
+                "project": "Link2Context",
+                "files": ["auto-queue.commands.txt", "auto-queue.jsonl"],
+                "file_details": {},
+            },
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = run_auto_queue(
+        tmp_path,
+        tmp_path,
+        write_next=True,
+        next_plan={"command_template": "asr-cli --input {input_source}", "out_dir": "outputs/media text"},
+    )
+    verification = verify_auto_queue_next(tmp_path)
+
+    assert report["ok"] is True
+    assert '--out "outputs/media text/auto-queue-media-text-video-not_processed.jsonl"' in report["next_commands"][0]
+    assert verification["ok"] is True
+    assert verification["out_paths"] == ["outputs/media text/auto-queue-media-text-video-not_processed.jsonl"]
 
 
 def test_verify_auto_queue_next_passes_for_written_next_files(tmp_path: Path) -> None:
